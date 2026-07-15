@@ -28,6 +28,7 @@ from app.session_requests import (
     get_session_request,
     list_business_session_requests,
 )
+from app.pilot_data import delete_student_pilot_data
 from app.authentication import (
     accept_magic_link_request,
     active_session,
@@ -164,6 +165,7 @@ class SessionRequestResponse(BaseModel):
 
 
 class SessionRequestStudentResponse(BaseModel):
+    id: str
     email: str
     display_name: str
 
@@ -174,6 +176,21 @@ class TutorSessionRequestResponse(SessionRequestResponse):
 
 class TutorSessionRequestListResponse(BaseModel):
     requests: list[TutorSessionRequestResponse]
+
+
+class PilotDataDeletionRequest(BaseModel):
+    confirmation: str
+
+
+class RemovedPilotDataResponse(BaseModel):
+    invitations: int
+    student_sessions: int
+    session_requests: int
+
+
+class PilotDataDeletionResponse(BaseModel):
+    status: Literal["deleted"]
+    removed: RemovedPilotDataResponse
 
 
 def create_app() -> FastAPI:
@@ -461,6 +478,38 @@ def create_app() -> FastAPI:
                     settings.database_url
                 )
             }
+        )
+
+    @application.delete(
+        "/api/tutor/students/{student_account_id}/pilot-data",
+        response_model=PilotDataDeletionResponse,
+    )
+    async def delete_collected_pilot_data(
+        student_account_id: str,
+        deletion: PilotDataDeletionRequest,
+        request: Request,
+    ) -> PilotDataDeletionResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        raw_csrf = request.headers.get("x-csrf-token")
+        if (
+            raw_session is None
+            or raw_csrf is None
+            or not session_authorizes_mutation(
+                settings.database_url, raw_session, raw_csrf, "tutor"
+            )
+        ):
+            raise HTTPException(status_code=401 if raw_session is None else 403)
+        if request.headers.get("origin") != settings.application_origin:
+            raise HTTPException(status_code=403)
+        if deletion.confirmation != "DELETE COLLECTED DATA":
+            raise HTTPException(status_code=400)
+        removed = delete_student_pilot_data(
+            settings.database_url, student_account_id
+        )
+        if removed is None:
+            raise HTTPException(status_code=404)
+        return PilotDataDeletionResponse.model_validate(
+            {"status": "deleted", "removed": removed}
         )
 
     @application.post(

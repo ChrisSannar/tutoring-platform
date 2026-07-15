@@ -99,6 +99,7 @@ def list_business_session_requests(
                     "SELECT session_requests.id, session_requests.service, "
                     "session_requests.preferred_start, session_requests.timezone, "
                     "session_requests.message, session_requests.status, "
+                    "accounts.id AS student_id, "
                     "accounts.email AS student_email, "
                     "accounts.display_name AS student_display_name "
                     "FROM session_requests JOIN accounts ON accounts.id = "
@@ -115,6 +116,7 @@ def list_business_session_requests(
                     "message": row["message"],
                     "status": row["status"],
                     "student": {
+                        "id": row["student_id"],
                         "email": row["student_email"],
                         "display_name": row["student_display_name"],
                     },

@@ -581,16 +581,18 @@ async def test_tutor_views_all_business_session_requests(
     assert visible.json() == {
         "requests": [
             {
-                **first.json(),
-                "student": {
-                    "email": "first@example.com",
+                    **first.json(),
+                    "student": {
+                        "id": "student-account",
+                        "email": "first@example.com",
                     "display_name": "Avery",
                 },
             },
             {
-                **second.json(),
-                "student": {
-                    "email": "second@example.com",
+                    **second.json(),
+                    "student": {
+                        "id": "second-student-account",
+                        "email": "second@example.com",
                     "display_name": "Bailey",
                 },
             },

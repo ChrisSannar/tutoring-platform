@@ -1,0 +1,234 @@
+import os
+from pathlib import Path
+import subprocess
+import sys
+from urllib.parse import parse_qs, urlparse
+
+from alembic import command
+from alembic.config import Config
+import httpx
+import pytest
+
+from app.config import get_settings
+from app.main import create_app
+
+
+async def collected_pilot_data(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> tuple[httpx.AsyncClient, str, httpx.AsyncClient, str, str]:
+    database_url = f"sqlite:///{tmp_path / 'pilot-data-deletion.sqlite3'}"
+    alembic_config = Config("backend/alembic.ini")
+    alembic_config.set_main_option("sqlalchemy.url", database_url)
+    command.upgrade(alembic_config, "head")
+    subprocess.run(
+        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
+        cwd="backend",
+        env={
+            **os.environ,
+            "TUTORING_ENVIRONMENT": "test",
+            "TUTORING_DATABASE_URL": database_url,
+        },
+        check=True,
+        capture_output=True,
+    )
+    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
+    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
+    monkeypatch.setenv("TUTORING_APPLICATION_ORIGIN", "http://testserver")
+    get_settings.cache_clear()
+
+    tutor = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app()),
+        base_url="http://testserver",
+    )
+    await tutor.post("/api/auth/magic-links", json={"email": "tutor@example.com"})
+    tutor_outbox = await tutor.get("/api/development/outbox")
+    tutor_token = parse_qs(
+        urlparse(tutor_outbox.json()["messages"][-1]["magic_link"]).query
+    )["token"][0]
+    tutor_sign_in = await tutor.post(
+        "/api/auth/magic-links/confirm", json={"token": tutor_token}
+    )
+    tutor_csrf = tutor_sign_in.json()["csrf_token"]
+    tutor_headers = {
+        "Origin": "http://testserver",
+        "X-CSRF-Token": tutor_csrf,
+    }
+    invitation = await tutor.post(
+        "/api/tutor/invitations",
+        headers=tutor_headers,
+        json={
+            "email": "student@example.com",
+            "display_name": "Avery",
+            "shared_personal_message": "Welcome to tutoring.",
+            "private_tutor_note": "Needs evening availability.",
+        },
+    )
+    activated = await tutor.post(
+        f"/api/tutor/invitations/{invitation.json()['id']}/activate",
+        headers=tutor_headers,
+    )
+    invitation_token = activated.json()["invitation_url"].removeprefix("/invite/")
+
+    student = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=create_app()),
+        base_url="http://testserver",
+    )
+    await student.post(
+        f"/api/invitations/{invitation_token}/magic-links",
+        json={"email": "student@example.com"},
+    )
+    student_outbox = await student.get("/api/development/outbox")
+    claim_token = parse_qs(
+        urlparse(student_outbox.json()["messages"][-1]["magic_link"]).query
+    )["token"][0]
+    claimed = await student.post(
+        "/api/invitation-claims/confirm",
+        json={"token": claim_token, "display_name": "Avery Chen"},
+    )
+    student_csrf = claimed.json()["csrf_token"]
+    created_request = await student.post(
+        "/api/student/session-requests",
+        headers={
+            "Origin": "http://testserver",
+            "X-CSRF-Token": student_csrf,
+            "Idempotency-Key": "delete-pilot-data",
+        },
+        json={
+            "service": "Algebra tutoring",
+            "preferred_start": "2026-07-20T18:00:00Z",
+            "timezone": "America/Chicago",
+            "message": "Please review quadratic equations.",
+        },
+    )
+    return tutor, tutor_csrf, student, student_csrf, created_request.json()["id"]
+
+
+@pytest.mark.anyio
+async def test_tutor_deliberately_deletes_collected_pilot_data(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    tutor, tutor_csrf, student, _, _ = await collected_pilot_data(
+        monkeypatch, tmp_path
+    )
+    try:
+        before = await tutor.get("/api/tutor/session-requests")
+        student_id = before.json()["requests"][0]["student"]["id"]
+        deleted = await tutor.request(
+            "DELETE",
+            f"/api/tutor/students/{student_id}/pilot-data",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": tutor_csrf,
+            },
+            json={"confirmation": "DELETE COLLECTED DATA"},
+        )
+        after = await tutor.get("/api/tutor/session-requests")
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        get_settings.cache_clear()
+
+    assert deleted.status_code == 200
+    assert deleted.json() == {
+        "status": "deleted",
+        "removed": {
+            "invitations": 1,
+            "student_sessions": 1,
+            "session_requests": 1,
+        },
+    }
+    assert after.json() == {"requests": []}
+
+
+@pytest.mark.anyio
+async def test_student_cannot_delete_collected_pilot_data(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    tutor, _, student, student_csrf, _ = await collected_pilot_data(
+        monkeypatch, tmp_path
+    )
+    try:
+        visible = await tutor.get("/api/tutor/session-requests")
+        student_id = visible.json()["requests"][0]["student"]["id"]
+        denied = await student.request(
+            "DELETE",
+            f"/api/tutor/students/{student_id}/pilot-data",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": student_csrf,
+            },
+            json={"confirmation": "DELETE COLLECTED DATA"},
+        )
+        still_visible = await tutor.get("/api/tutor/session-requests")
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        get_settings.cache_clear()
+
+    assert denied.status_code == 403
+    assert denied.json().keys() == {"code", "message", "request_id"}
+    assert len(still_visible.json()["requests"]) == 1
+
+
+@pytest.mark.anyio
+async def test_deletion_requires_the_exact_confirmation_phrase(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    tutor, tutor_csrf, student, _, _ = await collected_pilot_data(
+        monkeypatch, tmp_path
+    )
+    try:
+        visible = await tutor.get("/api/tutor/session-requests")
+        student_id = visible.json()["requests"][0]["student"]["id"]
+        rejected = await tutor.request(
+            "DELETE",
+            f"/api/tutor/students/{student_id}/pilot-data",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": tutor_csrf,
+            },
+            json={"confirmation": "delete"},
+        )
+        still_visible = await tutor.get("/api/tutor/session-requests")
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        get_settings.cache_clear()
+
+    assert rejected.status_code == 400
+    assert rejected.json().keys() == {"code", "message", "request_id"}
+    assert len(still_visible.json()["requests"]) == 1
+
+
+@pytest.mark.anyio
+async def test_deleted_student_session_cannot_access_protected_resources(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    tutor, tutor_csrf, student, _, session_request_id = await collected_pilot_data(
+        monkeypatch, tmp_path
+    )
+    try:
+        visible = await tutor.get("/api/tutor/session-requests")
+        student_id = visible.json()["requests"][0]["student"]["id"]
+        await tutor.request(
+            "DELETE",
+            f"/api/tutor/students/{student_id}/pilot-data",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": tutor_csrf,
+            },
+            json={"confirmation": "DELETE COLLECTED DATA"},
+        )
+        student_session = await student.get("/api/student/session")
+        session_request = await student.get(
+            f"/api/student/session-requests/{session_request_id}"
+        )
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        get_settings.cache_clear()
+
+    assert student_session.status_code == 401
+    assert session_request.status_code == 401
+    assert student_session.json().keys() == {"code", "message", "request_id"}
+    assert session_request.json().keys() == {"code", "message", "request_id"}
