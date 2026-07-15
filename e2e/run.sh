@@ -11,6 +11,8 @@ trap cleanup EXIT INT TERM
 
 export TUTORING_ENVIRONMENT=test
 export TUTORING_DATABASE_URL="sqlite:///${state_directory}/test.sqlite3"
+export TUTORING_MAGIC_LINK_EMAIL_HOURLY_LIMIT=50
+export TUTORING_MAGIC_LINK_IP_HOURLY_LIMIT=100
 
 UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache \
   uv run --project backend alembic -c backend/alembic.ini upgrade head

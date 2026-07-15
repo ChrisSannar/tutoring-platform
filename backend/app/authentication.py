@@ -6,7 +6,13 @@ from uuid import uuid4
 from sqlalchemy import create_engine, text
 
 
-def accept_magic_link_request(database_url: str, email: str, ip_address: str) -> bool:
+def accept_magic_link_request(
+    database_url: str,
+    email: str,
+    ip_address: str,
+    email_hourly_limit: int,
+    ip_hourly_limit: int,
+) -> bool:
     now = datetime.now(timezone.utc)
     window_start = now - timedelta(hours=1)
     email_hash = sha256(email.strip().lower().encode()).hexdigest()
@@ -29,7 +35,9 @@ def accept_magic_link_request(database_url: str, email: str, ip_address: str) ->
                     "window_start": window_start,
                 },
             ).mappings().one()
-            if (counts["email_count"] or 0) >= 5 or (counts["ip_count"] or 0) >= 20:
+            if (counts["email_count"] or 0) >= email_hourly_limit or (
+                counts["ip_count"] or 0
+            ) >= ip_hourly_limit:
                 return False
             connection.execute(
                 text(

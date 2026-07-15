@@ -249,7 +249,11 @@ def create_app() -> FastAPI:
         normalized_email = magic_link_request.email.strip().lower()
         ip_address = request.client.host if request.client is not None else "unknown"
         if not accept_magic_link_request(
-            settings.database_url, normalized_email, ip_address
+            settings.database_url,
+            normalized_email,
+            ip_address,
+            settings.magic_link_email_hourly_limit,
+            settings.magic_link_ip_hourly_limit,
         ):
             raise HTTPException(status_code=429)
         token = issue_magic_link(
