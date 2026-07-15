@@ -11,10 +11,13 @@ from app.config import get_settings
 from app.database import readiness_status
 from app.invitations import (
     activate_invitation,
+    claim_invitation,
     correct_invitation_email,
     create_draft_invitation,
     get_active_invitation_by_token,
+    get_active_invitation_claim,
     get_tutor_invitation,
+    issue_invitation_claim_token,
     regenerate_invitation,
     revoke_invitation,
 )
@@ -91,6 +94,29 @@ class InviteeInvitationResponse(BaseModel):
 
 class InvitationEmailCorrectionRequest(BaseModel):
     email: str
+
+
+class InvitationClaimLinkRequest(BaseModel):
+    email: str
+
+
+class InvitationClaimConfirmationResponse(BaseModel):
+    status: Literal["confirmation_required"]
+    email: str
+    display_name: str
+
+
+class InvitationClaimConfirmationRequest(BaseModel):
+    token: str
+    display_name: str
+
+
+class ClaimedInvitationResponse(BaseModel):
+    status: Literal["claimed"]
+    role: Literal["student"]
+    email: str
+    display_name: str
+    csrf_token: str
 
 
 class CorrectedInvitationResponse(BaseModel):
@@ -426,6 +452,86 @@ def create_app() -> FastAPI:
         if invitation is None:
             raise HTTPException(status_code=404)
         return InviteeInvitationResponse.model_validate(invitation)
+
+    @application.post(
+        "/api/invitations/{token}/magic-links",
+        status_code=202,
+        response_model=MagicLinkAcceptedResponse,
+    )
+    async def request_invitation_claim_link(
+        token: str, claim_request: InvitationClaimLinkRequest
+    ) -> MagicLinkAcceptedResponse:
+        normalized_email = claim_request.email.strip().lower()
+        claim_token = issue_invitation_claim_token(
+            settings.database_url,
+            token,
+            normalized_email,
+            settings.magic_link_ttl_seconds,
+        )
+        if claim_token is not None and settings.environment != "production":
+            development_outbox.append(
+                {
+                    "to": normalized_email,
+                    "magic_link": f"/student/claim/confirm?token={claim_token}",
+                }
+            )
+        return MagicLinkAcceptedResponse(
+            status="accepted",
+            message="If the address matches, a verification link has been sent.",
+        )
+
+    @application.get(
+        "/api/invitation-claims/confirm",
+        response_model=InvitationClaimConfirmationResponse,
+    )
+    async def inspect_invitation_claim(
+        token: str,
+    ) -> InvitationClaimConfirmationResponse:
+        invitation = get_active_invitation_claim(settings.database_url, token)
+        if invitation is None:
+            raise HTTPException(status_code=400)
+        return InvitationClaimConfirmationResponse(
+            status="confirmation_required",
+            email=invitation["email"],
+            display_name=invitation["display_name"],
+        )
+
+    @application.post(
+        "/api/invitation-claims/confirm",
+        response_model=ClaimedInvitationResponse,
+    )
+    async def confirm_invitation_claim(
+        confirmation: InvitationClaimConfirmationRequest,
+        response: Response,
+    ) -> ClaimedInvitationResponse:
+        claimed = claim_invitation(
+            settings.database_url,
+            confirmation.token,
+            confirmation.display_name,
+            settings.session_inactivity_seconds,
+            settings.session_absolute_seconds,
+        )
+        if claimed is None:
+            raise HTTPException(status_code=400)
+        response.set_cookie(
+            key=session_cookie_name,
+            value=claimed["session"],
+            secure=settings.environment == "production",
+            httponly=True,
+            samesite="lax",
+            path="/",
+            max_age=90 * 24 * 60 * 60,
+        )
+        response.set_cookie(
+            key=csrf_cookie_name,
+            value=claimed["csrf_token"],
+            secure=settings.environment == "production",
+            httponly=False,
+            samesite="strict",
+            path="/",
+            max_age=90 * 24 * 60 * 60,
+        )
+        return ClaimedInvitationResponse.model_validate(claimed)
 
     @application.post("/api/auth/logout", status_code=204)
     async def logout(request: Request, response: Response) -> Response:
