@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import uuid4
 
@@ -8,6 +9,11 @@ from starlette.responses import JSONResponse, Response
 
 from app.config import get_settings
 from app.database import readiness_status
+from app.invitations import (
+    activate_invitation,
+    create_draft_invitation,
+    get_tutor_invitation,
+)
 from app.authentication import (
     accept_magic_link_request,
     active_session,
@@ -15,6 +21,7 @@ from app.authentication import (
     issue_magic_link,
     magic_link_is_active,
     revoke_session,
+    session_authorizes_mutation,
 )
 
 
@@ -37,6 +44,39 @@ class MagicLinkAcceptedResponse(BaseModel):
 
 class MagicLinkConfirmation(BaseModel):
     token: str
+
+
+class InvitationDraftRequest(BaseModel):
+    email: str
+    display_name: str
+    shared_personal_message: str
+    private_tutor_note: str
+
+
+class TutorInvitationResponse(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    shared_personal_message: str
+    private_tutor_note: str
+    status: Literal["draft"]
+
+
+class ActivatedInvitationResponse(BaseModel):
+    id: str
+    status: Literal["active"]
+    invitation_url: str
+    expires_at: datetime
+
+
+class TutorInvitationRecordResponse(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    shared_personal_message: str
+    private_tutor_note: str
+    status: Literal["draft", "active"]
+    expires_at: datetime | None
 
 
 def create_app() -> FastAPI:
@@ -192,6 +232,91 @@ def create_app() -> FastAPI:
         ):
             raise HTTPException(status_code=401)
         return {"role": "tutor"}
+
+    @application.post(
+        "/api/tutor/invitations",
+        status_code=201,
+        response_model=TutorInvitationResponse,
+    )
+    async def create_invitation(
+        invitation: InvitationDraftRequest,
+        request: Request,
+    ) -> TutorInvitationResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        raw_csrf = request.headers.get("x-csrf-token")
+        if (
+            raw_session is None
+            or raw_csrf is None
+            or not session_authorizes_mutation(
+                settings.database_url,
+                raw_session,
+                raw_csrf,
+                "tutor",
+            )
+        ):
+            raise HTTPException(status_code=401 if raw_session is None else 403)
+        if request.headers.get("origin") != settings.application_origin:
+            raise HTTPException(status_code=403)
+        return TutorInvitationResponse.model_validate(
+            create_draft_invitation(
+                settings.database_url,
+                invitation.email,
+                invitation.display_name,
+                invitation.shared_personal_message,
+                invitation.private_tutor_note,
+            )
+        )
+
+    @application.post(
+        "/api/tutor/invitations/{invitation_id}/activate",
+        response_model=ActivatedInvitationResponse,
+    )
+    async def activate_draft_invitation(
+        invitation_id: str, request: Request
+    ) -> ActivatedInvitationResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        raw_csrf = request.headers.get("x-csrf-token")
+        if (
+            raw_session is None
+            or raw_csrf is None
+            or not session_authorizes_mutation(
+                settings.database_url, raw_session, raw_csrf, "tutor"
+            )
+        ):
+            raise HTTPException(status_code=401 if raw_session is None else 403)
+        if request.headers.get("origin") != settings.application_origin:
+            raise HTTPException(status_code=403)
+        activated = activate_invitation(
+            settings.database_url,
+            invitation_id,
+            settings.invitation_ttl_seconds,
+        )
+        if activated is None:
+            raise HTTPException(status_code=404)
+        return ActivatedInvitationResponse.model_validate(activated)
+
+    @application.get(
+        "/api/tutor/invitations/{invitation_id}",
+        response_model=TutorInvitationRecordResponse,
+    )
+    async def inspect_tutor_invitation(
+        invitation_id: str, request: Request
+    ) -> TutorInvitationRecordResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        if (
+            raw_session is None
+            or active_session(
+                settings.database_url,
+                raw_session,
+                settings.session_inactivity_seconds,
+            )
+            != "tutor"
+        ):
+            raise HTTPException(status_code=401)
+        invitation = get_tutor_invitation(settings.database_url, invitation_id)
+        if invitation is None:
+            raise HTTPException(status_code=404)
+        return TutorInvitationRecordResponse.model_validate(invitation)
 
     @application.post("/api/auth/logout", status_code=204)
     async def logout(request: Request, response: Response) -> Response:

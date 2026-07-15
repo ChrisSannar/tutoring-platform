@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     environment: Literal["development", "test", "production"] = "development"
     database_url: str = ""
     magic_link_ttl_seconds: int = 15 * 60
+    invitation_ttl_seconds: int = 7 * 24 * 60 * 60
     session_inactivity_seconds: int = 30 * 24 * 60 * 60
     session_absolute_seconds: int = 90 * 24 * 60 * 60
     application_origin: str = "http://127.0.0.1:7310"
