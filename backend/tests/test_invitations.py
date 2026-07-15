@@ -597,3 +597,119 @@ async def test_regeneration_replaces_and_permanently_invalidates_the_prior_token
     assert regenerated.json()["invitation_url"] != activated.json()["invitation_url"]
     assert prior_link.status_code == 404
     assert replacement_link.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_opening_an_expired_link_records_the_terminal_expired_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("TUTORING_INVITATION_TTL_SECONDS", "-1")
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
+    try:
+        created = await client.post(
+            "/api/tutor/invitations",
+            headers=headers,
+            json={
+                "email": "invitee@example.com",
+                "display_name": "Avery",
+                "shared_personal_message": "Welcome.",
+                "private_tutor_note": "Private.",
+            },
+        )
+        activated = await client.post(
+            f"/api/tutor/invitations/{created.json()['id']}/activate",
+            headers=headers,
+        )
+        token = activated.json()["invitation_url"].rsplit("/", 1)[-1]
+        opened = await client.get(f"/api/invitations/{token}")
+        inspected = await client.get(
+            f"/api/tutor/invitations/{created.json()['id']}"
+        )
+    finally:
+        await client.aclose()
+    get_settings.cache_clear()
+
+    assert opened.status_code == 404
+    assert inspected.status_code == 200
+    assert inspected.json()["status"] == "expired"
+
+
+@pytest.mark.anyio
+async def test_unusable_invitation_tokens_have_indistinguishable_safe_responses(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
+
+    async def activate(email: str) -> tuple[str, str]:
+        created = await client.post(
+            "/api/tutor/invitations",
+            headers=headers,
+            json={
+                "email": email,
+                "display_name": "Avery",
+                "shared_personal_message": "Welcome.",
+                "private_tutor_note": "Never disclose this.",
+            },
+        )
+        activated = await client.post(
+            f"/api/tutor/invitations/{created.json()['id']}/activate",
+            headers=headers,
+        )
+        return created.json()["id"], activated.json()["invitation_url"]
+
+    try:
+        revoked_id, revoked_url = await activate("revoked@example.com")
+        await client.post(
+            f"/api/tutor/invitations/{revoked_id}/revoke", headers=headers
+        )
+
+        superseded_id, superseded_url = await activate("superseded@example.com")
+        await client.post(
+            f"/api/tutor/invitations/{superseded_id}/regenerate", headers=headers
+        )
+
+        expired_id, expired_url = await activate("expired@example.com")
+        claimed_id, claimed_url = await activate("claimed@example.com")
+        engine = create_engine(f"sqlite:///{tmp_path / 'invitations.sqlite3'}")
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "UPDATE invitations SET expires_at = :expires_at "
+                        "WHERE id = :id"
+                    ),
+                    {"id": expired_id, "expires_at": "2000-01-01 00:00:00"},
+                )
+                connection.execute(
+                    text("UPDATE invitations SET status = 'claimed' WHERE id = :id"),
+                    {"id": claimed_id},
+                )
+        finally:
+            engine.dispose()
+
+        unusable_urls = [
+            "/api/invitations/not-an-issued-token",
+            revoked_url.replace("/invite/", "/api/invitations/"),
+            superseded_url.replace("/invite/", "/api/invitations/"),
+            expired_url.replace("/invite/", "/api/invitations/"),
+            claimed_url.replace("/invite/", "/api/invitations/"),
+        ]
+        responses = [await client.get(url) for url in unusable_urls]
+    finally:
+        await client.aclose()
+    get_settings.cache_clear()
+
+    assert {
+        (
+            response.status_code,
+            response.json()["code"],
+            response.json()["message"],
+            frozenset(response.json()),
+        )
+        for response in responses
+    } == {
+        (404, "not_found", "Resource not found", frozenset({"code", "message", "request_id"}))
+    }
+    assert all("Never disclose this." not in response.text for response in responses)

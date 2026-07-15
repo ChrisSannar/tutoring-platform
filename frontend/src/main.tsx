@@ -19,6 +19,47 @@ function LandingPage() {
   );
 }
 
+type InviteeInvitation = {
+  email: string;
+  display_name: string;
+  shared_personal_message: string;
+};
+
+function InviteeSetup() {
+  const [invitation, setInvitation] = useState<InviteeInvitation | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+
+  useEffect(() => {
+    const token = window.location.pathname.split("/").at(-1) ?? "";
+    void fetch(`/api/invitations/${encodeURIComponent(token)}`).then(
+      async (response) => {
+        if (!response.ok) {
+          setUnavailable(true);
+          return;
+        }
+        setInvitation(await response.json());
+      },
+    );
+  }, []);
+
+  if (unavailable) {
+    return (
+      <main><section className="hero"><h1>Invitation unavailable</h1></section></main>
+    );
+  }
+  if (!invitation) {
+    return <main><p>Loading Invitation…</p></main>;
+  }
+  return (
+    <main><section className="hero">
+      <p className="eyebrow">Your personal Invitation</p>
+      <h1>Welcome, {invitation.display_name}</h1>
+      <p className="intro">{invitation.shared_personal_message}</p>
+      <p>{invitation.email}</p>
+    </section></main>
+  );
+}
+
 function TutorAuthentication() {
   const confirming = window.location.pathname === "/tutor/sign-in/confirm";
   const returning = window.location.pathname === "/tutor";
@@ -33,6 +74,8 @@ function TutorAuthentication() {
   const [privateTutorNote, setPrivateTutorNote] = useState("");
   const [invitationId, setInvitationId] = useState("");
   const [invitationLink, setInvitationLink] = useState("");
+  const [managementMessage, setManagementMessage] = useState("");
+  const [invitationRevoked, setInvitationRevoked] = useState(false);
 
   useEffect(() => {
     if (screen !== "loading") return;
@@ -116,6 +159,48 @@ function TutorAuthentication() {
     setInvitationLink(invitation.invitation_url);
   }
 
+  async function correctInvitationEmail() {
+    const response = await fetch(`/api/tutor/invitations/${invitationId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify({ email: inviteeEmail }),
+    });
+    if (!response.ok) return;
+    const invitation = await response.json();
+    setInviteeEmail(invitation.email);
+    setManagementMessage("Email corrected");
+  }
+
+  async function regenerateInvitation() {
+    const response = await fetch(
+      `/api/tutor/invitations/${invitationId}/regenerate`,
+      {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken },
+      },
+    );
+    if (!response.ok) return;
+    const invitation = await response.json();
+    setInvitationLink(invitation.invitation_url);
+    setManagementMessage("Replacement link shown once");
+  }
+
+  async function revokeInvitation() {
+    const response = await fetch(
+      `/api/tutor/invitations/${invitationId}/revoke`,
+      {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken },
+      },
+    );
+    if (!response.ok) return;
+    setInvitationRevoked(true);
+    setInvitationLink("");
+  }
+
   if (screen === "sent") {
     return (
       <main><section className="hero"><h1>Check the development outbox</h1></section></main>
@@ -167,6 +252,10 @@ function TutorAuthentication() {
             />
             <button type="submit">Create Invitation</button>
           </form>
+        ) : invitationRevoked ? (
+          <section>
+            <h2>Revoked Invitation for {inviteeDisplayName}</h2>
+          </section>
         ) : !invitationLink ? (
           <section>
             <h2>Draft Invitation for {inviteeDisplayName}</h2>
@@ -177,6 +266,17 @@ function TutorAuthentication() {
             <h2>Active Invitation for {inviteeDisplayName}</h2>
             <label htmlFor="invitation-link">Invitation link</label>
             <input id="invitation-link" value={invitationLink} readOnly />
+            <label htmlFor="bound-email">Bound email</label>
+            <input
+              id="bound-email"
+              type="email"
+              value={inviteeEmail}
+              onChange={(event) => setInviteeEmail(event.target.value)}
+            />
+            <button onClick={correctInvitationEmail}>Correct email</button>
+            <button onClick={regenerateInvitation}>Regenerate Invitation</button>
+            <button onClick={revokeInvitation}>Revoke Invitation</button>
+            {managementMessage ? <p>{managementMessage}</p> : null}
           </section>
         )}
         <button onClick={logOut}>Log out</button>
@@ -202,6 +302,9 @@ function TutorAuthentication() {
 }
 
 function Application() {
+  if (window.location.pathname.startsWith("/invite/")) {
+    return <InviteeSetup />;
+  }
   if (window.location.pathname.startsWith("/tutor")) {
     return <TutorAuthentication />;
   }

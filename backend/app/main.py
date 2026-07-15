@@ -79,7 +79,7 @@ class TutorInvitationRecordResponse(BaseModel):
     display_name: str
     shared_personal_message: str
     private_tutor_note: str
-    status: Literal["draft", "active"]
+    status: Literal["draft", "active", "claimed", "revoked", "expired"]
     expires_at: datetime | None
 
 
@@ -418,8 +418,9 @@ def create_app() -> FastAPI:
         return ActivatedInvitationResponse.model_validate(regenerated)
 
     @application.get(
-        "/invite/{token}", response_model=InviteeInvitationResponse
+        "/api/invitations/{token}", response_model=InviteeInvitationResponse
     )
+    @application.get("/invite/{token}", response_model=InviteeInvitationResponse)
     async def open_invitation(token: str) -> InviteeInvitationResponse:
         invitation = get_active_invitation_by_token(settings.database_url, token)
         if invitation is None:
