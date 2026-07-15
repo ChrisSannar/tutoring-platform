@@ -10,6 +10,7 @@ from starlette.responses import JSONResponse, Response
 from app.config import get_settings
 from app.database import readiness_status
 from app.invitations import (
+    InvitationClaimConflict,
     activate_invitation,
     claim_invitation,
     correct_invitation_email,
@@ -29,6 +30,7 @@ from app.authentication import (
     magic_link_is_active,
     revoke_session,
     session_authorizes_mutation,
+    student_session_details,
 )
 
 
@@ -284,6 +286,20 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=401)
         return {"role": "tutor"}
 
+    @application.get("/api/student/session")
+    async def get_student_session(request: Request) -> dict[str, str]:
+        raw_session = request.cookies.get(session_cookie_name)
+        if raw_session is None or active_session(
+            settings.database_url,
+            raw_session,
+            settings.session_inactivity_seconds,
+        ) != "student":
+            raise HTTPException(status_code=401)
+        student = student_session_details(settings.database_url, raw_session)
+        if student is None:
+            raise HTTPException(status_code=401)
+        return student
+
     @application.post(
         "/api/tutor/invitations",
         status_code=201,
@@ -502,15 +518,20 @@ def create_app() -> FastAPI:
     )
     async def confirm_invitation_claim(
         confirmation: InvitationClaimConfirmationRequest,
+        request: Request,
         response: Response,
     ) -> ClaimedInvitationResponse:
-        claimed = claim_invitation(
-            settings.database_url,
-            confirmation.token,
-            confirmation.display_name,
-            settings.session_inactivity_seconds,
-            settings.session_absolute_seconds,
-        )
+        try:
+            claimed = claim_invitation(
+                settings.database_url,
+                confirmation.token,
+                confirmation.display_name,
+                settings.session_inactivity_seconds,
+                settings.session_absolute_seconds,
+                request.cookies.get(session_cookie_name),
+            )
+        except InvitationClaimConflict:
+            raise HTTPException(status_code=409) from None
         if claimed is None:
             raise HTTPException(status_code=400)
         response.set_cookie(

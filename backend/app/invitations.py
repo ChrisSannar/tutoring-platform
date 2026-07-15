@@ -4,6 +4,11 @@ import secrets
 from uuid import uuid4
 
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import IntegrityError
+
+
+class InvitationClaimConflict(Exception):
+    pass
 
 
 def create_draft_invitation(
@@ -193,6 +198,7 @@ def claim_invitation(
     display_name: str,
     inactivity_seconds: int,
     absolute_seconds: int,
+    previous_session: str | None,
 ) -> dict[str, str] | None:
     now = datetime.now(timezone.utc)
     account_id = str(uuid4())
@@ -201,23 +207,33 @@ def claim_invitation(
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
+            token_hash = sha256(raw_claim_token.encode()).hexdigest()
             claim = connection.execute(
                 text(
-                    "SELECT invitation_claim_tokens.id AS claim_token_id, "
-                    "invitations.id AS invitation_id, invitations.email "
-                    "FROM invitation_claim_tokens JOIN invitations "
-                    "ON invitations.id = invitation_claim_tokens.invitation_id "
-                    "WHERE invitation_claim_tokens.token_hash = :token_hash "
-                    "AND invitation_claim_tokens.consumed_at IS NULL "
-                    "AND invitation_claim_tokens.expires_at > :now "
-                    "AND invitations.status = 'active'"
+                    "UPDATE invitations SET status = 'claimed', "
+                    "display_name = :display_name, claimed_account_id = :account_id, "
+                    "token_hash = NULL WHERE status = 'active' AND id = ("
+                    "SELECT invitation_id FROM invitation_claim_tokens "
+                    "WHERE token_hash = :token_hash AND consumed_at IS NULL "
+                    "AND expires_at > :now) RETURNING id, email"
                 ),
                 {
-                    "token_hash": sha256(raw_claim_token.encode()).hexdigest(),
+                    "display_name": display_name,
+                    "account_id": account_id,
+                    "token_hash": token_hash,
                     "now": now,
                 },
             ).mappings().first()
             if claim is None:
+                known_token = connection.execute(
+                    text(
+                        "SELECT 1 FROM invitation_claim_tokens "
+                        "WHERE token_hash = :token_hash"
+                    ),
+                    {"token_hash": token_hash},
+                ).first()
+                if known_token is not None:
+                    raise InvitationClaimConflict
                 return None
             connection.execute(
                 text(
@@ -230,27 +246,24 @@ def claim_invitation(
                     "display_name": display_name,
                 },
             )
-            claimed = connection.execute(
-                text(
-                    "UPDATE invitations SET status = 'claimed', "
-                    "display_name = :display_name, claimed_account_id = :account_id, "
-                    "token_hash = NULL WHERE id = :invitation_id AND status = 'active'"
-                ),
-                {
-                    "display_name": display_name,
-                    "account_id": account_id,
-                    "invitation_id": claim["invitation_id"],
-                },
-            )
-            if claimed.rowcount != 1:
-                return None
             connection.execute(
                 text(
                     "UPDATE invitation_claim_tokens SET consumed_at = :now "
-                    "WHERE id = :id AND consumed_at IS NULL"
+                    "WHERE token_hash = :token_hash AND consumed_at IS NULL"
                 ),
-                {"now": now, "id": claim["claim_token_id"]},
+                {"now": now, "token_hash": token_hash},
             )
+            if previous_session is not None:
+                connection.execute(
+                    text(
+                        "UPDATE authentication_sessions SET revoked_at = :now "
+                        "WHERE session_hash = :session_hash AND revoked_at IS NULL"
+                    ),
+                    {
+                        "now": now,
+                        "session_hash": sha256(previous_session.encode()).hexdigest(),
+                    },
+                )
             connection.execute(
                 text(
                     "INSERT INTO authentication_sessions "
@@ -276,6 +289,8 @@ def claim_invitation(
                 "session": raw_session,
                 "csrf_token": raw_csrf,
             }
+    except IntegrityError:
+        raise InvitationClaimConflict from None
     finally:
         engine.dispose()
 

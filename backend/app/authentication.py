@@ -214,6 +214,33 @@ def active_session(
         engine.dispose()
 
 
+def student_session_details(
+    database_url: str, raw_session: str
+) -> dict[str, str] | None:
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            student = connection.execute(
+                text(
+                    "SELECT accounts.role, accounts.email, accounts.display_name "
+                    "FROM authentication_sessions JOIN accounts "
+                    "ON accounts.id = authentication_sessions.account_id "
+                    "WHERE authentication_sessions.session_hash = :session_hash "
+                    "AND authentication_sessions.revoked_at IS NULL "
+                    "AND authentication_sessions.inactive_expires_at > :now "
+                    "AND authentication_sessions.absolute_expires_at > :now "
+                    "AND accounts.role = 'student'"
+                ),
+                {
+                    "session_hash": sha256(raw_session.encode()).hexdigest(),
+                    "now": datetime.now(timezone.utc),
+                },
+            ).mappings().first()
+            return dict(student) if student is not None else None
+    finally:
+        engine.dispose()
+
+
 def revoke_session(database_url: str, raw_session: str, raw_csrf: str) -> bool:
     engine = create_engine(database_url)
     try:
