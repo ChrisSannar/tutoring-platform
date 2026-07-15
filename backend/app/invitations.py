@@ -88,3 +88,88 @@ def get_tutor_invitation(
             return dict(invitation) if invitation is not None else None
     finally:
         engine.dispose()
+
+
+def get_active_invitation_by_token(
+    database_url: str, raw_token: str
+) -> dict[str, str] | None:
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            invitation = connection.execute(
+                text(
+                    "SELECT email, display_name, shared_personal_message "
+                    "FROM invitations WHERE token_hash = :token_hash "
+                    "AND status = 'active' AND expires_at > CURRENT_TIMESTAMP"
+                ),
+                {"token_hash": sha256(raw_token.encode()).hexdigest()},
+            ).mappings().first()
+            return dict(invitation) if invitation is not None else None
+    finally:
+        engine.dispose()
+
+
+def correct_invitation_email(
+    database_url: str, invitation_id: str, email: str
+) -> dict[str, str] | None:
+    normalized_email = email.strip().lower()
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            corrected = connection.execute(
+                text(
+                    "UPDATE invitations SET email = :email WHERE id = :id "
+                    "AND status IN ('draft', 'active') RETURNING id, email, status"
+                ),
+                {"id": invitation_id, "email": normalized_email},
+            ).mappings().first()
+            return dict(corrected) if corrected is not None else None
+    finally:
+        engine.dispose()
+
+
+def revoke_invitation(database_url: str, invitation_id: str) -> dict[str, str] | None:
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            revoked = connection.execute(
+                text(
+                    "UPDATE invitations SET status = 'revoked' WHERE id = :id "
+                    "AND status = 'active' RETURNING id, status"
+                ),
+                {"id": invitation_id},
+            ).mappings().first()
+            return dict(revoked) if revoked is not None else None
+    finally:
+        engine.dispose()
+
+
+def regenerate_invitation(
+    database_url: str, invitation_id: str, ttl_seconds: int
+) -> dict[str, str | datetime] | None:
+    raw_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            regenerated = connection.execute(
+                text(
+                    "UPDATE invitations SET token_hash = :token_hash, "
+                    "expires_at = :expires_at WHERE id = :id AND status = 'active'"
+                ),
+                {
+                    "id": invitation_id,
+                    "token_hash": sha256(raw_token.encode()).hexdigest(),
+                    "expires_at": expires_at,
+                },
+            )
+            if regenerated.rowcount != 1:
+                return None
+        return {
+            "id": invitation_id,
+            "status": "active",
+            "invitation_url": f"/invite/{raw_token}",
+            "expires_at": expires_at,
+        }
+    finally:
+        engine.dispose()

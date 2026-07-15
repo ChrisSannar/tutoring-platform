@@ -11,8 +11,12 @@ from app.config import get_settings
 from app.database import readiness_status
 from app.invitations import (
     activate_invitation,
+    correct_invitation_email,
     create_draft_invitation,
+    get_active_invitation_by_token,
     get_tutor_invitation,
+    regenerate_invitation,
+    revoke_invitation,
 )
 from app.authentication import (
     accept_magic_link_request,
@@ -77,6 +81,27 @@ class TutorInvitationRecordResponse(BaseModel):
     private_tutor_note: str
     status: Literal["draft", "active"]
     expires_at: datetime | None
+
+
+class InviteeInvitationResponse(BaseModel):
+    email: str
+    display_name: str
+    shared_personal_message: str
+
+
+class InvitationEmailCorrectionRequest(BaseModel):
+    email: str
+
+
+class CorrectedInvitationResponse(BaseModel):
+    id: str
+    email: str
+    status: Literal["draft", "active"]
+
+
+class RevokedInvitationResponse(BaseModel):
+    id: str
+    status: Literal["revoked"]
 
 
 def create_app() -> FastAPI:
@@ -313,6 +338,93 @@ def create_app() -> FastAPI:
         if invitation is None:
             raise HTTPException(status_code=404)
         return TutorInvitationRecordResponse.model_validate(invitation)
+
+    @application.patch(
+        "/api/tutor/invitations/{invitation_id}",
+        response_model=CorrectedInvitationResponse,
+    )
+    async def correct_bound_email(
+        invitation_id: str,
+        correction: InvitationEmailCorrectionRequest,
+        request: Request,
+    ) -> CorrectedInvitationResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        raw_csrf = request.headers.get("x-csrf-token")
+        if (
+            raw_session is None
+            or raw_csrf is None
+            or not session_authorizes_mutation(
+                settings.database_url, raw_session, raw_csrf, "tutor"
+            )
+        ):
+            raise HTTPException(status_code=401 if raw_session is None else 403)
+        if request.headers.get("origin") != settings.application_origin:
+            raise HTTPException(status_code=403)
+        corrected = correct_invitation_email(
+            settings.database_url, invitation_id, correction.email
+        )
+        if corrected is None:
+            raise HTTPException(status_code=404)
+        return CorrectedInvitationResponse.model_validate(corrected)
+
+    @application.post(
+        "/api/tutor/invitations/{invitation_id}/revoke",
+        response_model=RevokedInvitationResponse,
+    )
+    async def revoke_active_invitation(
+        invitation_id: str, request: Request
+    ) -> RevokedInvitationResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        raw_csrf = request.headers.get("x-csrf-token")
+        if (
+            raw_session is None
+            or raw_csrf is None
+            or not session_authorizes_mutation(
+                settings.database_url, raw_session, raw_csrf, "tutor"
+            )
+        ):
+            raise HTTPException(status_code=401 if raw_session is None else 403)
+        if request.headers.get("origin") != settings.application_origin:
+            raise HTTPException(status_code=403)
+        revoked = revoke_invitation(settings.database_url, invitation_id)
+        if revoked is None:
+            raise HTTPException(status_code=404)
+        return RevokedInvitationResponse.model_validate(revoked)
+
+    @application.post(
+        "/api/tutor/invitations/{invitation_id}/regenerate",
+        response_model=ActivatedInvitationResponse,
+    )
+    async def regenerate_active_invitation(
+        invitation_id: str, request: Request
+    ) -> ActivatedInvitationResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        raw_csrf = request.headers.get("x-csrf-token")
+        if (
+            raw_session is None
+            or raw_csrf is None
+            or not session_authorizes_mutation(
+                settings.database_url, raw_session, raw_csrf, "tutor"
+            )
+        ):
+            raise HTTPException(status_code=401 if raw_session is None else 403)
+        if request.headers.get("origin") != settings.application_origin:
+            raise HTTPException(status_code=403)
+        regenerated = regenerate_invitation(
+            settings.database_url, invitation_id, settings.invitation_ttl_seconds
+        )
+        if regenerated is None:
+            raise HTTPException(status_code=404)
+        return ActivatedInvitationResponse.model_validate(regenerated)
+
+    @application.get(
+        "/invite/{token}", response_model=InviteeInvitationResponse
+    )
+    async def open_invitation(token: str) -> InviteeInvitationResponse:
+        invitation = get_active_invitation_by_token(settings.database_url, token)
+        if invitation is None:
+            raise HTTPException(status_code=404)
+        return InviteeInvitationResponse.model_validate(invitation)
 
     @application.post("/api/auth/logout", status_code=204)
     async def logout(request: Request, response: Response) -> Response:
