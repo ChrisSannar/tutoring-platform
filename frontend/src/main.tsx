@@ -27,6 +27,12 @@ function TutorAuthentication() {
   >(confirming ? "confirm" : returning ? "loading" : "sign-in");
   const [email, setEmail] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
+  const [inviteeEmail, setInviteeEmail] = useState("");
+  const [inviteeDisplayName, setInviteeDisplayName] = useState("");
+  const [sharedPersonalMessage, setSharedPersonalMessage] = useState("");
+  const [privateTutorNote, setPrivateTutorNote] = useState("");
+  const [invitationId, setInvitationId] = useState("");
+  const [invitationLink, setInvitationLink] = useState("");
 
   useEffect(() => {
     if (screen !== "loading") return;
@@ -77,6 +83,39 @@ function TutorAuthentication() {
     setScreen("sign-in");
   }
 
+  async function createInvitation(event: FormEvent) {
+    event.preventDefault();
+    const response = await fetch("/api/tutor/invitations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify({
+        email: inviteeEmail,
+        display_name: inviteeDisplayName,
+        shared_personal_message: sharedPersonalMessage,
+        private_tutor_note: privateTutorNote,
+      }),
+    });
+    if (!response.ok) return;
+    const invitation = await response.json();
+    setInvitationId(invitation.id);
+  }
+
+  async function activateInvitation() {
+    const response = await fetch(
+      `/api/tutor/invitations/${invitationId}/activate`,
+      {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken },
+      },
+    );
+    if (!response.ok) return;
+    const invitation = await response.json();
+    setInvitationLink(invitation.invitation_url);
+  }
+
   if (screen === "sent") {
     return (
       <main><section className="hero"><h1>Check the development outbox</h1></section></main>
@@ -97,6 +136,49 @@ function TutorAuthentication() {
     return (
       <main><section className="hero">
         <h1>Tutor workspace</h1>
+        {!invitationId ? (
+          <form onSubmit={createInvitation}>
+            <label htmlFor="invitee-email">Invitee email</label>
+            <input
+              id="invitee-email"
+              type="email"
+              value={inviteeEmail}
+              onChange={(event) => setInviteeEmail(event.target.value)}
+              required
+            />
+            <label htmlFor="invitee-display-name">Invitee display name</label>
+            <input
+              id="invitee-display-name"
+              value={inviteeDisplayName}
+              onChange={(event) => setInviteeDisplayName(event.target.value)}
+              required
+            />
+            <label htmlFor="shared-personal-message">Shared Personal Message</label>
+            <textarea
+              id="shared-personal-message"
+              value={sharedPersonalMessage}
+              onChange={(event) => setSharedPersonalMessage(event.target.value)}
+            />
+            <label htmlFor="private-tutor-note">Private Tutor Note</label>
+            <textarea
+              id="private-tutor-note"
+              value={privateTutorNote}
+              onChange={(event) => setPrivateTutorNote(event.target.value)}
+            />
+            <button type="submit">Create Invitation</button>
+          </form>
+        ) : !invitationLink ? (
+          <section>
+            <h2>Draft Invitation for {inviteeDisplayName}</h2>
+            <button onClick={activateInvitation}>Activate Invitation</button>
+          </section>
+        ) : (
+          <section>
+            <h2>Active Invitation for {inviteeDisplayName}</h2>
+            <label htmlFor="invitation-link">Invitation link</label>
+            <input id="invitation-link" value={invitationLink} readOnly />
+          </section>
+        )}
         <button onClick={logOut}>Log out</button>
       </section></main>
     );
