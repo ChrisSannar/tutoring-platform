@@ -104,6 +104,7 @@ type SessionRequest = {
 
 type TutorSessionRequest = SessionRequest & {
   student: {
+    id: string;
     email: string;
     display_name: string;
   };
@@ -292,6 +293,9 @@ function TutorAuthentication() {
   const [sessionRequests, setSessionRequests] = useState<TutorSessionRequest[]>(
     [],
   );
+  const [deletionStudentId, setDeletionStudentId] = useState("");
+  const [deletionConfirmation, setDeletionConfirmation] = useState("");
+  const [deletionMessage, setDeletionMessage] = useState("");
 
   useEffect(() => {
     if (screen !== "loading") return;
@@ -426,6 +430,30 @@ function TutorAuthentication() {
     setInvitationLink("");
   }
 
+  async function deleteCollectedPilotData() {
+    const response = await fetch(
+      `/api/tutor/students/${deletionStudentId}/pilot-data`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+        },
+        body: JSON.stringify({ confirmation: deletionConfirmation }),
+      },
+    );
+    if (!response.ok) return;
+    setSessionRequests((requests) =>
+      requests.filter(
+        (sessionRequest) =>
+          sessionRequest.student.id !== deletionStudentId,
+      ),
+    );
+    setDeletionStudentId("");
+    setDeletionConfirmation("");
+    setDeletionMessage("Collected pilot data deleted");
+  }
+
   if (screen === "sent") {
     return (
       <main><section className="hero"><h1>Check the development outbox</h1></section></main>
@@ -454,9 +482,34 @@ function TutorAuthentication() {
               <p>{sessionRequest.student.email}</p>
               <p>{sessionRequest.service}</p>
               {sessionRequest.message ? <p>{sessionRequest.message}</p> : null}
+              <button
+                onClick={() => setDeletionStudentId(sessionRequest.student.id)}
+              >
+                Delete collected data
+              </button>
             </article>
           ))}
         </section>
+        {deletionStudentId ? (
+          <section>
+            <p>This permanently removes the Student's collected pilot data.</p>
+            <label htmlFor="deletion-confirmation">
+              Type DELETE COLLECTED DATA to confirm
+            </label>
+            <input
+              id="deletion-confirmation"
+              value={deletionConfirmation}
+              onChange={(event) => setDeletionConfirmation(event.target.value)}
+            />
+            <button
+              disabled={deletionConfirmation !== "DELETE COLLECTED DATA"}
+              onClick={deleteCollectedPilotData}
+            >
+              Permanently delete collected data
+            </button>
+          </section>
+        ) : null}
+        {deletionMessage ? <p>{deletionMessage}</p> : null}
         {!invitationId ? (
           <form onSubmit={createInvitation}>
             <label htmlFor="invitee-email">Invitee email</label>
