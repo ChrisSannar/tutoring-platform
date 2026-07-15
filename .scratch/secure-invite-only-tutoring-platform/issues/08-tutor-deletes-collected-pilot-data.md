@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 — Student Submits a Session Request.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Only the Tutor can initiate deletion through a deliberate authenticated action.
 - [ ] Related pilot records are removed or invalidated according to an explicit observable contract.
