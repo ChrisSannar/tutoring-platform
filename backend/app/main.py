@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import Literal
 from uuid import uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
+from fastapi import FastAPI, Header, Request
+from pydantic import BaseModel, Field, field_validator
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse, Response
 
@@ -22,6 +23,7 @@ from app.invitations import (
     regenerate_invitation,
     revoke_invitation,
 )
+from app.session_requests import create_session_request
 from app.authentication import (
     accept_magic_link_request,
     active_session,
@@ -130,6 +132,31 @@ class CorrectedInvitationResponse(BaseModel):
 class RevokedInvitationResponse(BaseModel):
     id: str
     status: Literal["revoked"]
+
+
+class SessionRequestSubmission(BaseModel):
+    service: str
+    preferred_start: datetime
+    timezone: str
+    message: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("timezone")
+    @classmethod
+    def require_iana_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as error:
+            raise ValueError("timezone must be an IANA timezone") from error
+        return value
+
+
+class SessionRequestResponse(BaseModel):
+    id: str
+    service: str
+    preferred_start: datetime
+    timezone: str
+    message: str | None
+    status: Literal["pending"]
 
 
 def create_app() -> FastAPI:
@@ -331,6 +358,44 @@ def create_app() -> FastAPI:
                 invitation.display_name,
                 invitation.shared_personal_message,
                 invitation.private_tutor_note,
+            )
+        )
+
+    @application.post(
+        "/api/student/session-requests",
+        status_code=201,
+        response_model=SessionRequestResponse,
+    )
+    async def submit_session_request(
+        submission: SessionRequestSubmission,
+        request: Request,
+        idempotency_key: str = Header(),
+    ) -> SessionRequestResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        raw_csrf = request.headers.get("x-csrf-token")
+        if raw_session is None or active_session(
+            settings.database_url,
+            raw_session,
+            settings.session_inactivity_seconds,
+        ) != "student":
+            raise HTTPException(status_code=401)
+        if raw_csrf is None:
+            raise HTTPException(status_code=403)
+        if not session_authorizes_mutation(
+            settings.database_url, raw_session, raw_csrf, "student"
+        ):
+            raise HTTPException(status_code=403)
+        if request.headers.get("origin") != settings.application_origin:
+            raise HTTPException(status_code=403)
+        return SessionRequestResponse.model_validate(
+            create_session_request(
+                settings.database_url,
+                raw_session,
+                idempotency_key,
+                submission.service,
+                submission.preferred_start,
+                submission.timezone,
+                submission.message,
             )
         )
 
