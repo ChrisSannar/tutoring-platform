@@ -361,3 +361,85 @@ async def test_activation_reveals_an_invitation_link_only_once(
     assert first_activation.status_code == 200
     assert second_activation.status_code == 404
     assert "invitation_url" not in second_activation.text
+
+
+@pytest.mark.anyio
+async def test_anonymous_caller_cannot_inspect_a_tutor_invitation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    try:
+        created = await client.post(
+            "/api/tutor/invitations",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": csrf_token,
+            },
+            json={
+                "email": "invitee@example.com",
+                "display_name": "Avery",
+                "shared_personal_message": "Welcome.",
+                "private_tutor_note": "Never disclose this.",
+            },
+        )
+        client.cookies.clear()
+        inspected = await client.get(
+            f"/api/tutor/invitations/{created.json()['id']}"
+        )
+    finally:
+        await client.aclose()
+    get_settings.cache_clear()
+
+    assert inspected.status_code == 401
+    assert "Never disclose this." not in inspected.text
+
+
+@pytest.mark.anyio
+async def test_student_caller_cannot_inspect_a_tutor_invitation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    try:
+        created = await client.post(
+            "/api/tutor/invitations",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": csrf_token,
+            },
+            json={
+                "email": "invitee@example.com",
+                "display_name": "Avery",
+                "shared_personal_message": "Welcome.",
+                "private_tutor_note": "Tutor-only context.",
+            },
+        )
+        engine = create_engine(f"sqlite:///{tmp_path / 'invitations.sqlite3'}")
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "INSERT INTO accounts (id, email, role) "
+                        "VALUES ('student-account', 'student@example.com', 'student')"
+                    )
+                )
+        finally:
+            engine.dispose()
+        await client.post(
+            "/api/auth/magic-links", json={"email": "student@example.com"}
+        )
+        outbox = await client.get("/api/development/outbox")
+        student_token = parse_qs(
+            urlparse(outbox.json()["messages"][-1]["magic_link"]).query
+        )["token"][0]
+        await client.post(
+            "/api/auth/magic-links/confirm", json={"token": student_token}
+        )
+        inspected = await client.get(
+            f"/api/tutor/invitations/{created.json()['id']}"
+        )
+    finally:
+        await client.aclose()
+    get_settings.cache_clear()
+
+    assert inspected.status_code == 401
+    assert "Tutor-only context." not in inspected.text

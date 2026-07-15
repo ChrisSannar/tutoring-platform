@@ -303,15 +303,11 @@ def create_app() -> FastAPI:
         invitation_id: str, request: Request
     ) -> TutorInvitationRecordResponse:
         raw_session = request.cookies.get(session_cookie_name)
-        if (
-            raw_session is None
-            or active_session(
-                settings.database_url,
-                raw_session,
-                settings.session_inactivity_seconds,
-            )
-            != "tutor"
-        ):
+        if raw_session is None or active_session(
+            settings.database_url,
+            raw_session,
+            settings.session_inactivity_seconds,
+        ) != "tutor":
             raise HTTPException(status_code=401)
         invitation = get_tutor_invitation(settings.database_url, invitation_id)
         if invitation is None:
