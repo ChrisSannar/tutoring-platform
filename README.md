@@ -37,3 +37,33 @@ The frozen required slice is `landing page → personalized invitation → accou
 and pushed repository evidence; deployment and external services are not required.
 Every slice must also satisfy the security completion gate in
 [`PRODUCT-GRILLING.md`](PRODUCT-GRILLING.md).
+
+## Development
+
+Prerequisites are Bun 1.3+, Python 3.12+, and `uv`.
+
+```bash
+bun run setup
+bun run install:e2e
+```
+
+Run all current behavioral checks with:
+
+```bash
+bun run test
+```
+
+The end-to-end command builds the frontend, starts both application processes on local
+test ports, runs Playwright, and tears the processes down. No pre-running application
+services are used.
+
+For local development, run the processes separately:
+
+```bash
+bun run dev:backend
+bun run --cwd frontend dev --host 127.0.0.1 --port 7310
+```
+
+The browser always calls relative `/api/*` paths. Vite proxies them to the local
+FastAPI service, so the browser and API stay on one origin and the backend does not
+enable CORS.

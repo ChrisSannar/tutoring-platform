@@ -12,13 +12,15 @@
   `.scratch/secure-invite-only-tutoring-platform/spec.md`.
 - Published eight approved, linear tracer-bullet tickets beneath
   `.scratch/secure-invite-only-tutoring-platform/issues/`.
+- Completed ticket 01 with a public React landing page, sanitized FastAPI liveness,
+  browser security headers, locked dependencies, and root-owned Playwright orchestration.
 - Confirmed TDD seams:
   1. Playwright for the full user journey.
   2. Black-box HTTP tests for API and security behavior.
 
 ## Approved ticket order
 
-1. Public Application Shell and Liveness
+1. Public Application Shell and Liveness — resolved
 2. SQLite Schema Readiness
 3. Invite-Only Tutor Authentication
 4. Tutor Creates a Personalized Invitation
@@ -32,25 +34,23 @@ each completed ticket separately.
 
 ## Current repository state
 
-- No application code has been implemented.
-- The repository still has no commits; all planning/spec/ticket files are untracked.
-- `git add` cannot write `.git/index.lock` inside the normal sandbox because `.git` is
-  read-only.
-- Escalated staging/commit attempts did not complete; the last approval attempt was
-  intentionally aborted. Check `git status` before retrying, but no staging was observed
-  before the interruption.
+- The planning/domain baseline is committed.
+- Ticket 01 application code is implemented, verified, and committed separately from
+  the planning baseline.
+- Root `bun run setup` performs frozen Bun installation and locked Python synchronization.
+- Root `bun run test` runs black-box HTTP and Playwright behavior checks.
+- Git index writes require escalation because `.git` is read-only in the normal sandbox.
 
 ## Restart sequence
 
-1. Read `AGENTS.md`, `CONTEXT.md`, applicable ADRs, the spec, and ticket 01.
-2. Check `git status` and create the initial planning commit containing the current
-   docs, spec, tickets, and this handoff. Git index writes require approval/escalation.
-3. Implement ticket 01 test-first at the confirmed seams:
+1. Read `AGENTS.md`, `CONTEXT.md`, ADR 0002, the spec, and ticket 02.
+2. Check `git status` and confirm the ticket 01 implementation commit exists.
+3. Implement ticket 02 test-first at the confirmed black-box HTTP seam:
    - first produce a failing external-behavior test;
    - add only enough implementation to pass;
    - run the relevant checks;
-   - commit ticket 01 by itself.
-4. Continue tickets 02 through 08 in dependency order, one verified commit per ticket.
+   - commit ticket 02 by itself.
+4. Continue tickets 03 through 08 in dependency order, one verified commit per ticket.
 
 ## Key Day 1 contracts
 

@@ -1,0 +1,20 @@
+{
+  "name": "tutoring-platform",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "build": "bun run --cwd frontend build",
+    "dev:backend": "UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend uvicorn app.main:app --host 127.0.0.1 --port 7311 --no-access-log",
+    "serve:frontend": "bun run --cwd frontend build && bun run --cwd frontend preview --host 127.0.0.1 --port 7310",
+    "install:e2e": "PLAYWRIGHT_BROWSERS_PATH=/tmp/tutoring-platform-playwright playwright install chromium",
+    "setup": "bun install --frozen-lockfile && UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv sync --project backend --locked --group test",
+    "test": "bun run test:backend && bun run test:e2e",
+    "test:backend": "UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend --group test pytest backend/tests",
+    "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=/tmp/tutoring-platform-playwright playwright test --config e2e/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.1"
+  }
+}
