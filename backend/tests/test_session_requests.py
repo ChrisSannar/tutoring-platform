@@ -458,3 +458,168 @@ async def test_session_request_rejects_a_missing_origin(
         get_settings.cache_clear()
 
     assert response.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_student_views_their_session_request(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_client(
+        monkeypatch, tmp_path, "student", "student@example.com"
+    )
+    try:
+        created = await client.post(
+            "/api/student/session-requests",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": csrf_token,
+                "Idempotency-Key": "student-read",
+            },
+            json={
+                "service": "Algebra tutoring",
+                "preferred_start": "2026-07-20T18:00:00Z",
+                "timezone": "America/Chicago",
+            },
+        )
+        viewed = await client.get(
+            f"/api/student/session-requests/{created.json()['id']}"
+        )
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert viewed.status_code == 200
+    assert viewed.json() == created.json()
+
+
+@pytest.mark.anyio
+async def test_student_cannot_view_another_students_session_request(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    first_student, first_csrf = await authenticated_client(
+        monkeypatch, tmp_path, "student", "first@example.com"
+    )
+    second_student, _ = await additional_authenticated_client(
+        tmp_path, "student", "second@example.com", "second-student-account"
+    )
+    try:
+        created = await first_student.post(
+            "/api/student/session-requests",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": first_csrf,
+                "Idempotency-Key": "private-to-first-student",
+            },
+            json={
+                "service": "Algebra tutoring",
+                "preferred_start": "2026-07-20T18:00:00Z",
+                "timezone": "America/Chicago",
+                "message": "This belongs to the first Student.",
+            },
+        )
+        cross_student_view = await second_student.get(
+            f"/api/student/session-requests/{created.json()['id']}"
+        )
+    finally:
+        await first_student.aclose()
+        await second_student.aclose()
+        get_settings.cache_clear()
+
+    assert cross_student_view.status_code == 404
+    assert "This belongs to the first Student." not in cross_student_view.text
+
+
+@pytest.mark.anyio
+async def test_tutor_views_all_business_session_requests(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    first_student, first_csrf = await authenticated_client(
+        monkeypatch, tmp_path, "student", "first@example.com"
+    )
+    second_student, second_csrf = await additional_authenticated_client(
+        tmp_path, "student", "second@example.com", "second-student-account"
+    )
+    tutor, _ = await additional_authenticated_client(
+        tmp_path, "tutor", "tutor@example.com", "tutor-account"
+    )
+    try:
+        first = await first_student.post(
+            "/api/student/session-requests",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": first_csrf,
+                "Idempotency-Key": "first-request",
+            },
+            json={
+                "service": "Algebra tutoring",
+                "preferred_start": "2026-07-20T18:00:00Z",
+                "timezone": "America/Chicago",
+            },
+        )
+        second = await second_student.post(
+            "/api/student/session-requests",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": second_csrf,
+                "Idempotency-Key": "second-request",
+            },
+            json={
+                "service": "Geometry tutoring",
+                "preferred_start": "2026-07-21T19:00:00Z",
+                "timezone": "America/New_York",
+                "message": "Please cover triangle proofs.",
+            },
+        )
+        visible = await tutor.get("/api/tutor/session-requests")
+    finally:
+        await first_student.aclose()
+        await second_student.aclose()
+        await tutor.aclose()
+        get_settings.cache_clear()
+
+    assert visible.status_code == 200
+    assert visible.json() == {
+        "requests": [
+            {
+                **first.json(),
+                "student": {
+                    "email": "first@example.com",
+                    "display_name": "Avery",
+                },
+            },
+            {
+                **second.json(),
+                "student": {
+                    "email": "second@example.com",
+                    "display_name": "Bailey",
+                },
+            },
+        ]
+    }
+
+
+@pytest.mark.anyio
+async def test_session_request_requires_an_idempotency_key(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_client(
+        monkeypatch, tmp_path, "student", "student@example.com"
+    )
+    try:
+        response = await client.post(
+            "/api/student/session-requests",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": csrf_token,
+            },
+            json={
+                "service": "Algebra tutoring",
+                "preferred_start": "2026-07-20T18:00:00Z",
+                "timezone": "America/Chicago",
+            },
+        )
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert response.status_code == 422

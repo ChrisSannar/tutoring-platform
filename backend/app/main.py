@@ -23,7 +23,11 @@ from app.invitations import (
     regenerate_invitation,
     revoke_invitation,
 )
-from app.session_requests import create_session_request
+from app.session_requests import (
+    create_session_request,
+    get_session_request,
+    list_business_session_requests,
+)
 from app.authentication import (
     accept_magic_link_request,
     active_session,
@@ -157,6 +161,19 @@ class SessionRequestResponse(BaseModel):
     timezone: str
     message: str | None
     status: Literal["pending"]
+
+
+class SessionRequestStudentResponse(BaseModel):
+    email: str
+    display_name: str
+
+
+class TutorSessionRequestResponse(SessionRequestResponse):
+    student: SessionRequestStudentResponse
+
+
+class TutorSessionRequestListResponse(BaseModel):
+    requests: list[TutorSessionRequestResponse]
 
 
 def create_app() -> FastAPI:
@@ -397,6 +414,49 @@ def create_app() -> FastAPI:
                 submission.timezone,
                 submission.message,
             )
+        )
+
+    @application.get(
+        "/api/student/session-requests/{session_request_id}",
+        response_model=SessionRequestResponse,
+    )
+    async def view_student_session_request(
+        session_request_id: str, request: Request
+    ) -> SessionRequestResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        if raw_session is None or active_session(
+            settings.database_url,
+            raw_session,
+            settings.session_inactivity_seconds,
+        ) != "student":
+            raise HTTPException(status_code=401)
+        session_request = get_session_request(
+            settings.database_url, raw_session, session_request_id
+        )
+        if session_request is None:
+            raise HTTPException(status_code=404)
+        return SessionRequestResponse.model_validate(session_request)
+
+    @application.get(
+        "/api/tutor/session-requests",
+        response_model=TutorSessionRequestListResponse,
+    )
+    async def view_business_session_requests(
+        request: Request,
+    ) -> TutorSessionRequestListResponse:
+        raw_session = request.cookies.get(session_cookie_name)
+        if raw_session is None or active_session(
+            settings.database_url,
+            raw_session,
+            settings.session_inactivity_seconds,
+        ) != "tutor":
+            raise HTTPException(status_code=401)
+        return TutorSessionRequestListResponse.model_validate(
+            {
+                "requests": list_business_session_requests(
+                    settings.database_url
+                )
+            }
         )
 
     @application.post(
