@@ -4,7 +4,7 @@
 
 **Blocked by:** 06 — Invitee Claims the Invitation.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Requests require service, preferred start, IANA timezone, and a bounded optional message.
 - [ ] Preferred time is stored consistently in UTC and new requests remain pending.
