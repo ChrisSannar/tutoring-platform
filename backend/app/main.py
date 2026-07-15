@@ -7,14 +7,19 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse, Response
 
 from app.config import get_settings
+from app.database import readiness_status
 
 
 class HealthResponse(BaseModel):
     status: Literal["ok"]
 
 
+class ReadyResponse(BaseModel):
+    status: Literal["ready"]
+
+
 def create_app() -> FastAPI:
-    get_settings()
+    settings = get_settings()
     application = FastAPI(
         title="Tutoring Platform",
         docs_url=None,
@@ -51,8 +56,18 @@ def create_app() -> FastAPI:
         )
 
     @application.get("/api/health", response_model=HealthResponse)
-    def health() -> HealthResponse:
+    async def health() -> HealthResponse:
         return HealthResponse(status="ok")
+
+    @application.get("/api/ready", response_model=ReadyResponse)
+    async def ready() -> ReadyResponse | JSONResponse:
+        status = readiness_status(settings.database_url)
+        if status == "ready":
+            return ReadyResponse(status="ready")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "reason": status},
+        )
 
     return application
 

@@ -29,3 +29,10 @@ test("public pages apply the browser security baseline", async ({ request }) => 
     "camera=(), geolocation=(), microphone=(), payment=()",
   );
 });
+
+test("service is ready on an isolated migrated schema", async ({ request }) => {
+  const response = await request.get("/api/ready");
+
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toEqual({ status: "ready" });
+});

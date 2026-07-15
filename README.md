@@ -54,8 +54,9 @@ bun run test
 ```
 
 The end-to-end command builds the frontend, starts both application processes on local
-test ports, runs Playwright, and tears the processes down. No pre-running application
-services are used.
+test ports, creates and explicitly migrates an isolated SQLite database, runs
+Playwright, and tears down the processes and temporary database. No pre-running
+application services or persistent test state are used.
 
 For local development, run the processes separately:
 
@@ -63,6 +64,11 @@ For local development, run the processes separately:
 bun run dev:backend
 bun run --cwd frontend dev --host 127.0.0.1 --port 7310
 ```
+
+`dev:backend` applies Alembic migrations through root orchestration before starting
+FastAPI. The API process never creates or upgrades its own schema. Test and production
+environments must provide `TUTORING_DATABASE_URL`; development defaults to the ignored
+`backend/var/tutoring.sqlite3` database.
 
 The browser always calls relative `/api/*` paths. Vite proxies them to the local
 FastAPI service, so the browser and API stay on one origin and the backend does not

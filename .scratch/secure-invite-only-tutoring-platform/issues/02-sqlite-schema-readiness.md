@@ -4,10 +4,16 @@
 
 **Blocked by:** 01 — Public Application Shell and Liveness.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Alembic is the sole schema authority and migrations run outside the API process.
-- [ ] `GET /api/ready` returns the exact ready response only for reachable schema at head.
-- [ ] Database and schema failures return their exact sanitized 503 responses.
-- [ ] Development, E2E, and non-development database configuration obey the accepted boundaries.
-- [ ] Black-box HTTP and Playwright coverage prove isolated migration and cleanup behavior.
+- [x] Alembic is the sole schema authority and migrations run outside the API process.
+- [x] `GET /api/ready` returns the exact ready response only for reachable schema at head.
+- [x] Database and schema failures return their exact sanitized 503 responses.
+- [x] Development, E2E, and non-development database configuration obey the accepted boundaries.
+- [x] Black-box HTTP and Playwright coverage prove isolated migration and cleanup behavior.
+
+## Comments
+
+- Implemented through red-green slices at the confirmed black-box HTTP and Playwright seams.
+- The root E2E harness creates, migrates, and removes one temporary SQLite directory while preserving the Playwright exit status.
+- Verified all backend and browser behavior with `bun run test` from the repository root.

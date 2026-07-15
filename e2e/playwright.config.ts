@@ -11,8 +11,8 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "bun run dev:backend",
-      url: "http://127.0.0.1:7311/api/health",
+      command: "bun run serve:backend",
+      url: "http://127.0.0.1:7311/api/ready",
       reuseExistingServer: false,
       timeout: 30_000,
     },
