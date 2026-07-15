@@ -4,7 +4,7 @@
 
 **Blocked by:** 04 — Tutor Creates a Personalized Invitation.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] The setup page exposes only the Shared Personal Message and allowlisted Invitee data.
 - [ ] The Tutor can correct the bound email before claim, revoke, and regenerate.
