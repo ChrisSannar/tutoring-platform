@@ -14,6 +14,8 @@ export TUTORING_DATABASE_URL="sqlite:///${state_directory}/test.sqlite3"
 
 UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache \
   uv run --project backend alembic -c backend/alembic.ini upgrade head
+UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache \
+  uv run --project backend python -m app.bootstrap_tutor tutor@example.com
 
 status=0
 PLAYWRIGHT_BROWSERS_PATH=/tmp/tutoring-platform-playwright \
