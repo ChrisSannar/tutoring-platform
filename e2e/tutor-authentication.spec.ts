@@ -11,7 +11,7 @@ test("Tutor signs in through the development outbox and logs out", async ({
 
   const outboxResponse = await page.request.get("/api/development/outbox");
   const outbox = await outboxResponse.json();
-  await page.goto(outbox.messages[0].magic_link);
+  await page.goto(outbox.messages.at(-1).magic_link);
 
   await expect(
     page.getByRole("heading", { name: "Confirm Tutor sign-in" }),

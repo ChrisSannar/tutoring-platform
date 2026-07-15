@@ -1,0 +1,55 @@
+import { expect, test } from "@playwright/test";
+
+test("Invitee confirms an Invitation Claim and continues as a Student", async ({
+  page,
+}) => {
+  await page.goto("/tutor/sign-in");
+  await page.getByLabel("Email address").fill("tutor@example.com");
+  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
+  const tutorOutboxResponse = await page.request.get("/api/development/outbox");
+  const tutorOutbox = await tutorOutboxResponse.json();
+  await page.goto(tutorOutbox.messages.at(-1).magic_link);
+  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+
+  await page.getByLabel("Invitee email").fill("invitee@example.com");
+  await page.getByLabel("Invitee display name").fill("Avery");
+  await page
+    .getByLabel("Shared Personal Message")
+    .fill("I made this Invitation for you.");
+  await page.getByRole("button", { name: "Create Invitation" }).click();
+  await page.getByRole("button", { name: "Activate Invitation" }).click();
+  const invitationLink = await page.getByLabel("Invitation link").inputValue();
+
+  await page.goto(invitationLink);
+
+  await expect(page.getByLabel("Bound email")).toHaveValue(
+    "invitee@example.com",
+  );
+  await expect(page.getByLabel("Bound email")).toBeEditable({ editable: false });
+  await page.getByRole("button", { name: "Email verification link" }).click();
+  await expect(page.getByText("Check your email to continue")).toBeVisible();
+
+  const inviteeOutboxResponse = await page.request.get("/api/development/outbox");
+  const inviteeOutbox = await inviteeOutboxResponse.json();
+  await page.goto(inviteeOutbox.messages.at(-1).magic_link);
+
+  await expect(
+    page.getByRole("heading", { name: "Confirm Invitation Claim" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Bound email")).toHaveValue(
+    "invitee@example.com",
+  );
+  await expect(page.getByLabel("Bound email")).toBeEditable({ editable: false });
+  await page.getByLabel("Display name").fill("Avery Chen");
+  await page.getByRole("button", { name: "Confirm Invitation Claim" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Student workspace" }),
+  ).toBeVisible();
+  await expect(page.getByText("Welcome, Avery Chen")).toBeVisible();
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Student workspace" }),
+  ).toBeVisible();
+});

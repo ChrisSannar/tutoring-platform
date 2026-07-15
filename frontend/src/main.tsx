@@ -28,6 +28,7 @@ type InviteeInvitation = {
 function InviteeSetup() {
   const [invitation, setInvitation] = useState<InviteeInvitation | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [verificationRequested, setVerificationRequested] = useState(false);
 
   useEffect(() => {
     const token = window.location.pathname.split("/").at(-1) ?? "";
@@ -42,6 +43,20 @@ function InviteeSetup() {
     );
   }, []);
 
+  async function requestVerification() {
+    if (!invitation) return;
+    const token = window.location.pathname.split("/").at(-1) ?? "";
+    const response = await fetch(
+      `/api/invitations/${encodeURIComponent(token)}/magic-links`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: invitation.email }),
+      },
+    );
+    if (response.ok) setVerificationRequested(true);
+  }
+
   if (unavailable) {
     return (
       <main><section className="hero"><h1>Invitation unavailable</h1></section></main>
@@ -55,7 +70,111 @@ function InviteeSetup() {
       <p className="eyebrow">Your personal Invitation</p>
       <h1>Welcome, {invitation.display_name}</h1>
       <p className="intro">{invitation.shared_personal_message}</p>
+      <label htmlFor="invitee-bound-email">Bound email</label>
+      <input
+        id="invitee-bound-email"
+        type="email"
+        value={invitation.email}
+        readOnly
+      />
       <p>{invitation.email}</p>
+      {verificationRequested ? (
+        <p>Check your email to continue</p>
+      ) : (
+        <button onClick={requestVerification}>Email verification link</button>
+      )}
+    </section></main>
+  );
+}
+
+type Student = {
+  role: "student";
+  email: string;
+  display_name: string;
+};
+
+function StudentWorkspace({ initialStudent }: { initialStudent?: Student }) {
+  const [student, setStudent] = useState<Student | null>(initialStudent ?? null);
+  const [unavailable, setUnavailable] = useState(false);
+
+  useEffect(() => {
+    if (student) return;
+    void fetch("/api/student/session").then(async (response) => {
+      if (!response.ok) {
+        setUnavailable(true);
+        return;
+      }
+      setStudent(await response.json());
+    });
+  }, [student]);
+
+  if (unavailable) return <main><p>Student Session unavailable</p></main>;
+  if (!student) return <main><p>Loading Student Session…</p></main>;
+  return (
+    <main><section className="hero">
+      <p className="eyebrow">Your tutoring</p>
+      <h1>Student workspace</h1>
+      <p>Welcome, {student.display_name}</p>
+    </section></main>
+  );
+}
+
+function InvitationClaimConfirmation() {
+  const token = new URLSearchParams(window.location.search).get("token") ?? "";
+  const [invitation, setInvitation] = useState<InviteeInvitation | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [student, setStudent] = useState<Student | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+
+  useEffect(() => {
+    void fetch(
+      `/api/invitation-claims/confirm?token=${encodeURIComponent(token)}`,
+    ).then(async (response) => {
+      if (!response.ok) {
+        setUnavailable(true);
+        return;
+      }
+      const confirmation = await response.json();
+      setInvitation(confirmation);
+      setDisplayName(confirmation.display_name);
+    });
+  }, [token]);
+
+  async function confirmClaim() {
+    const response = await fetch("/api/invitation-claims/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, display_name: displayName }),
+    });
+    if (!response.ok) {
+      setUnavailable(true);
+      return;
+    }
+    const claimed = await response.json();
+    window.history.replaceState({}, "", "/student");
+    setStudent(claimed);
+  }
+
+  if (student) return <StudentWorkspace initialStudent={student} />;
+  if (unavailable) return <main><h1>Invitation Claim unavailable</h1></main>;
+  if (!invitation) return <main><p>Loading Invitation Claim…</p></main>;
+  return (
+    <main><section className="hero">
+      <h1>Confirm Invitation Claim</h1>
+      <label htmlFor="claim-bound-email">Bound email</label>
+      <input
+        id="claim-bound-email"
+        type="email"
+        value={invitation.email}
+        readOnly
+      />
+      <label htmlFor="claim-display-name">Display name</label>
+      <input
+        id="claim-display-name"
+        value={displayName}
+        onChange={(event) => setDisplayName(event.target.value)}
+      />
+      <button onClick={confirmClaim}>Confirm Invitation Claim</button>
     </section></main>
   );
 }
@@ -302,6 +421,12 @@ function TutorAuthentication() {
 }
 
 function Application() {
+  if (window.location.pathname === "/student/claim/confirm") {
+    return <InvitationClaimConfirmation />;
+  }
+  if (window.location.pathname === "/student") {
+    return <StudentWorkspace />;
+  }
   if (window.location.pathname.startsWith("/invite/")) {
     return <InviteeSetup />;
   }
