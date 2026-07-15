@@ -4,7 +4,7 @@
 
 **Blocked by:** 05 — Invitee Opens and Tutor Manages an Invitation.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Only the verified bound email can complete Invitation Claim.
 - [ ] The display name is editable without making the email mutable.
