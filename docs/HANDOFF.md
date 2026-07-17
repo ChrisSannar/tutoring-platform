@@ -3,8 +3,8 @@
 ## Completed
 
 - Finished the product grilling for the secure, invite-only, single-Tutor platform.
-- Recorded the accepted product/security decisions in `PRODUCT-GRILLING.md` and
-  `PRODUCT-DECISION-SHEET.md`.
+- Recorded the accepted product/security decisions in `docs/PRODUCT-GRILLING.md` and
+  `docs/PRODUCT-DECISION-SHEET.md`.
 - Established canonical domain language in `CONTEXT.md` and three architecture ADRs.
 - Configured the engineering skills for a local Markdown tracker through `AGENTS.md`
   and `docs/agents/`.

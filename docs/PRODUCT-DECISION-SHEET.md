@@ -35,3 +35,27 @@
 12. **Automated security gates** — Require tests, type checks, linting, production
     builds, Playwright, dependency audits for Bun/Python, and secret scanning before a
     slice is complete. **Decision: yes.**
+13. **Invitation lifecycle** — Creation immediately issues the raw token once while
+    persisting only its hash and records the Invitation as `created`. The first
+    successful personalized setup-page load transitions it to `opened`; later valid
+    loads remain `opened`. `claimed`, `expired`, and `revoked` are terminal outcomes.
+    **Decision: yes.**
+14. **Meaning of opened** — Persist the first successful setup-data response as the
+    opening event even when an automated link scanner may be responsible. Opening is
+    observational: it neither consumes the token nor changes its expiration or later
+    availability. **Decision: yes.**
+15. **Invitation expiration clock** — Expire an Invitation seven days after creation,
+    when its token was issued. Opening never restarts, extends, or otherwise changes
+    that deadline. **Decision: yes.**
+16. **Expiration persistence** — Treat `expires_at` as authoritative immediately after
+    its deadline. The first later token lookup, Tutor inspection, claim, or mutation
+    atomically persists `expired`; do not add a background scheduler for the pilot.
+    **Decision: yes.**
+17. **Revocation transitions** — Allow `created -> revoked` and `opened -> revoked`.
+    Retrying `revoked -> revoked` succeeds idempotently. Reject revocation of `claimed`
+    or `expired` Invitations as an invalid transition. Revocation invalidates the token
+    but preserves the Invitation record. **Decision: yes.**
+18. **Lifecycle evidence** — Persist one current status with required `created_at` and
+    nullable `first_opened_at`, `claimed_at`, `expired_at`, and `revoked_at` timestamps.
+    Populate `claimed_account_id` only on claim. Write each transition and its evidence
+    atomically; do not introduce an event-history table. **Decision: yes.**

@@ -42,11 +42,11 @@ the implemented pilot scope.
 
 ## Continue tomorrow
 
-Continue with [`PRODUCT-GRILLING.md`](PRODUCT-GRILLING.md). It contains the settled
+Continue with [`docs/PRODUCT-GRILLING.md`](docs/PRODUCT-GRILLING.md). It contains the settled
 domain model, product policies, implementation constraints, and remaining product
 questions from the grilling sessions.
 
-Use [`CONTEXT.md`](CONTEXT.md) for canonical product language. [`GLOSSARY.md`](GLOSSARY.md)
+Use [`CONTEXT.md`](CONTEXT.md) for canonical product language. [`docs/GLOSSARY.md`](docs/GLOSSARY.md)
 remains as a compatibility pointer. Accountability terms remain in the external
 Gauntlet ledger.
 
@@ -54,10 +54,10 @@ Do not silently turn unresolved questions into requirements. The adaptive planne
 schedule a product-decision task, freeze its answer, and then schedule implementation.
 
 The frozen required slice is `landing page → personalized invitation → account claim
-→ session request`. See [`BOUNDARIES.md`](BOUNDARIES.md). Grading uses only committed
+→ session request`. See [`docs/BOUNDARIES.md`](docs/BOUNDARIES.md). Grading uses only committed
 and pushed repository evidence; deployment and external services are not required.
 Every slice must also satisfy the security completion gate in
-[`PRODUCT-GRILLING.md`](PRODUCT-GRILLING.md).
+[`docs/PRODUCT-GRILLING.md`](docs/PRODUCT-GRILLING.md).
 
 ## Development
 
