@@ -7,6 +7,7 @@ import httpx
 import pytest
 from sqlalchemy import create_engine, text
 
+from app.authentication import issue_magic_link
 from app.config import get_settings
 from app.main import create_app
 
@@ -129,13 +130,9 @@ async def test_settings_reject_invalid_or_untrusted_updates_without_partial_chan
                 )
         finally:
             engine.dispose()
-        await client.post(
-            "/api/auth/magic-links", json={"email": "student@example.com"}
+        student_token = issue_magic_link(
+            get_settings().database_url, "student@example.com", 15 * 60
         )
-        outbox = await client.get("/api/development/outbox")
-        student_token = parse_qs(
-            urlparse(outbox.json()["messages"][-1]["magic_link"]).query
-        )["token"][0]
         student_auth = await client.post(
             "/api/auth/magic-links/confirm", json={"token": student_token}
         )

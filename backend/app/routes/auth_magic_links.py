@@ -8,6 +8,7 @@ from app.authentication import (
     magic_link_is_active,
 )
 from app.http.context import context_from, set_session_cookies
+from app.login_requests import queue_student_login_request
 from app.models.auth import (
     MagicLinkAcceptedResponse,
     MagicLinkConfirmation,
@@ -36,7 +37,8 @@ async def request_magic_link(
     )
     if not accepted:
         raise HTTPException(status_code=429)
-    token = issue_magic_link(
+    queued_for_tutor = queue_student_login_request(settings.database_url, email)
+    token = None if queued_for_tutor else issue_magic_link(
         settings.database_url, email, settings.magic_link_ttl_seconds
     )
     if token is not None and settings.environment != "production":

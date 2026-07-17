@@ -11,6 +11,7 @@ import httpx
 import pytest
 from sqlalchemy import create_engine, text
 
+from app.authentication import issue_magic_link
 from app.config import get_settings
 from app.main import create_app
 
@@ -408,13 +409,7 @@ async def test_student_caller_cannot_create_an_invitation(
         base_url="http://testserver",
     )
     try:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "student@example.com"}
-        )
-        outbox = await client.get("/api/development/outbox")
-        token = parse_qs(
-            urlparse(outbox.json()["messages"][0]["magic_link"]).query
-        )["token"][0]
+        token = issue_magic_link(database_url, "student@example.com", 15 * 60)
         authenticated = await client.post(
             "/api/auth/magic-links/confirm", json={"token": token}
         )
@@ -622,13 +617,11 @@ async def test_student_caller_cannot_inspect_a_tutor_invitation(
                 )
         finally:
             engine.dispose()
-        await client.post(
-            "/api/auth/magic-links", json={"email": "student@example.com"}
+        student_token = issue_magic_link(
+            f"sqlite:///{tmp_path / 'invitations.sqlite3'}",
+            "student@example.com",
+            15 * 60,
         )
-        outbox = await client.get("/api/development/outbox")
-        student_token = parse_qs(
-            urlparse(outbox.json()["messages"][-1]["magic_link"]).query
-        )["token"][0]
         await client.post(
             "/api/auth/magic-links/confirm", json={"token": student_token}
         )

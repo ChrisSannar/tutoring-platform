@@ -1,6 +1,18 @@
+import { useEffect, useState } from "react";
+
 import { InquiryModal } from "./InquiryModal";
 
 export function LandingPage() {
+  const [dashboardPath, setDashboardPath] = useState("");
+
+  useEffect(() => {
+    void fetch("/api/auth/session").then(async (response) => {
+      if (!response.ok) return;
+      const session = await response.json();
+      setDashboardPath(session.role === "tutor" ? "/tutor" : "/student");
+    });
+  }, []);
+
   return (
     <main>
       <section className="hero" aria-labelledby="hero-heading">
@@ -11,6 +23,9 @@ export function LandingPage() {
           you learn best.
         </p>
         <InquiryModal />
+        <a href={dashboardPath || "/sign-in"}>
+          {dashboardPath ? "Dashboard" : "Log In"}
+        </a>
       </section>
     </main>
   );

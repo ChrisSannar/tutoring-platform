@@ -3,6 +3,7 @@ import { InvitationManager } from "./InvitationManager";
 import { InquiryQueue } from "./InquiryQueue";
 import { PendingSessionRequests } from "./PendingSessionRequests";
 import { StudentList } from "./StudentList";
+import { LoginRequestQueue } from "./LoginRequestQueue";
 
 type TutorWorkspaceProps = {
   csrfToken: string;
@@ -15,6 +16,7 @@ export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
       <h1>Tutor workspace</h1>
       <BusinessSettings csrfToken={csrfToken} />
       <StudentList csrfToken={csrfToken} />
+      <LoginRequestQueue csrfToken={csrfToken} />
       <PendingSessionRequests csrfToken={csrfToken} />
       <InvitationManager csrfToken={csrfToken} />
       <InquiryQueue csrfToken={csrfToken} />

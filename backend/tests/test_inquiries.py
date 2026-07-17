@@ -1,5 +1,4 @@
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 from alembic import command
 from alembic.config import Config
@@ -7,6 +6,7 @@ import httpx
 import pytest
 from sqlalchemy import create_engine, text
 
+from app.authentication import issue_magic_link
 from app.config import get_settings
 from app.main import create_app
 
@@ -48,11 +48,7 @@ async def authenticate(
             )
     finally:
         engine.dispose()
-    await client.post("/api/auth/magic-links", json={"email": email})
-    outbox = await client.get("/api/development/outbox")
-    token = parse_qs(urlparse(outbox.json()["messages"][-1]["magic_link"]).query)[
-        "token"
-    ][0]
+    token = issue_magic_link(database_url, email, 15 * 60)
     confirmed = await client.post(
         "/api/auth/magic-links/confirm", json={"token": token}
     )

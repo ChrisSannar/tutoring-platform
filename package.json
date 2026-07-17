@@ -17,7 +17,8 @@
     "test": "bun run test:backend && bun run test:e2e",
     "test:backend": "UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend --group test pytest backend/tests",
     "test:e2e": "bash e2e/run.sh",
-    "tutor:bootstrap": "UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend python -m app.bootstrap_tutor"
+    "tutor:bootstrap": "UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend python -m app.bootstrap_tutor",
+    "tutor:login-link": "UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend python -m app.generate_tutor_login_link"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1"

@@ -1,4 +1,5 @@
 import { InvitationClaimConfirmation } from "../invitations/InvitationClaimConfirmation";
+import { LoginAuthentication } from "../auth/LoginAuthentication";
 import { InviteeSetup } from "../invitations/InviteeSetup";
 import { LandingPage } from "../landing/LandingPage";
 import { StudentWorkspace } from "../students/StudentWorkspace";
@@ -9,6 +10,9 @@ export function Application() {
 
   if (pathname === "/student/claim/confirm") {
     return <InvitationClaimConfirmation />;
+  }
+  if (pathname.startsWith("/sign-in")) {
+    return <LoginAuthentication />;
   }
   if (pathname === "/student") {
     return <StudentWorkspace />;
