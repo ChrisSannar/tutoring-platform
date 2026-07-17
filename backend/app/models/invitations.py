@@ -11,6 +11,10 @@ class InvitationDraftRequest(BaseModel):
     private_tutor_note: str
 
 
+class ManualInvitationRequest(BaseModel):
+    email: str
+
+
 class TutorInvitationResponse(InvitationDraftRequest):
     id: str
     status: Literal["draft"]
@@ -21,6 +25,15 @@ class ActivatedInvitationResponse(BaseModel):
     status: Literal["active"]
     invitation_url: str
     expires_at: datetime
+
+
+class CreatedInvitationResponse(ActivatedInvitationResponse):
+    email: str
+    status: Literal["created"]
+
+
+class InvitationLinkResponse(BaseModel):
+    invitation_url: str
 
 
 class TutorInvitationRecordResponse(InvitationDraftRequest):

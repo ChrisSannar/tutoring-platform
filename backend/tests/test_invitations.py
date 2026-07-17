@@ -25,6 +25,10 @@ async def authenticated_tutor_client(
     monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
     monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
     monkeypatch.setenv("TUTORING_APPLICATION_ORIGIN", "http://testserver")
+    monkeypatch.setenv(
+        "TUTORING_INVITATION_ENCRYPTION_KEY",
+        "a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=",
+    )
     get_settings.cache_clear()
     subprocess.run(
         [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
@@ -51,6 +55,39 @@ async def authenticated_tutor_client(
         "/api/auth/magic-links/confirm", json={"token": token}
     )
     return client, authenticated.json()["csrf_token"]
+
+
+@pytest.mark.anyio
+async def test_tutor_creates_and_retrieves_one_active_manual_invitation_link(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
+    try:
+        created = await client.post(
+            "/api/tutor/invitations",
+            headers=headers,
+            json={"email": " Known@Example.COM "},
+        )
+        retrieved = await client.get(
+            f"/api/tutor/invitations/{created.json()['id']}/link"
+        )
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert created.status_code == 201
+    assert created.json().keys() == {
+        "id",
+        "email",
+        "status",
+        "invitation_url",
+        "expires_at",
+    }
+    assert created.json()["email"] == "known@example.com"
+    assert created.json()["status"] == "created"
+    assert retrieved.status_code == 200
+    assert retrieved.json() == {"invitation_url": created.json()["invitation_url"]}
 
 
 @pytest.mark.anyio

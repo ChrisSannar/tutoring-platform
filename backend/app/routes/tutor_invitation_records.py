@@ -5,11 +5,14 @@ from app.http.context import context_from
 from app.invitations import (
     activate_invitation,
     create_draft_invitation,
+    create_manual_invitation,
     get_tutor_invitation,
 )
 from app.models.invitations import (
     ActivatedInvitationResponse,
+    CreatedInvitationResponse,
     InvitationDraftRequest,
+    ManualInvitationRequest,
     TutorInvitationRecordResponse,
     TutorInvitationResponse,
 )
@@ -19,13 +22,24 @@ router = APIRouter()
 
 
 @router.post(
-    "/api/tutor/invitations", status_code=201, response_model=TutorInvitationResponse
+    "/api/tutor/invitations",
+    status_code=201,
+    response_model=TutorInvitationResponse | CreatedInvitationResponse,
 )
 async def create_invitation(
-    invitation: InvitationDraftRequest, request: Request
-) -> TutorInvitationResponse:
+    invitation: InvitationDraftRequest | ManualInvitationRequest, request: Request
+) -> TutorInvitationResponse | CreatedInvitationResponse:
     require_mutation(request, "tutor")
-    database_url = context_from(request).settings.database_url
+    settings = context_from(request).settings
+    database_url = settings.database_url
+    if isinstance(invitation, ManualInvitationRequest):
+        created = create_manual_invitation(
+            database_url,
+            invitation.email,
+            settings.invitation_ttl_seconds,
+            settings.invitation_encryption_key.get_secret_value(),
+        )
+        return CreatedInvitationResponse.model_validate(created)
     created = create_draft_invitation(
         database_url,
         invitation.email,

@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     magic_link_ip_hourly_limit: int = 20
     inquiry_ip_hourly_limit: int = 5
     invitation_ttl_seconds: int = 7 * 24 * 60 * 60
+    invitation_encryption_key: SecretStr = SecretStr("")
     session_inactivity_seconds: int = 30 * 24 * 60 * 60
     session_absolute_seconds: int = 90 * 24 * 60 * 60
     application_origin: str = "http://127.0.0.1:7310"
