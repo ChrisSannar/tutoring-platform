@@ -676,11 +676,7 @@ async def test_invitee_opens_an_active_invitation_with_only_allowlisted_data(
     get_settings.cache_clear()
 
     assert opened.status_code == 200
-    assert opened.json() == {
-        "email": "invitee@example.com",
-        "display_name": "Avery",
-        "shared_personal_message": "I made this Invitation for you.",
-    }
+    assert opened.json() == {"email": "invitee@example.com"}
     assert "Never expose evening availability." not in opened.text
 
 

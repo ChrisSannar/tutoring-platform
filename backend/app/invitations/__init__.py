@@ -1,6 +1,7 @@
 from app.invitations.activation import activate_invitation, regenerate_invitation
 from app.invitations.claiming import claim_invitation
 from app.invitations.direct_creation import create_manual_invitation
+from app.invitations.direct_claiming import claim_direct_invitation
 from app.invitations.errors import InvitationClaimConflict
 from app.invitations.claim_tokens import (
     get_active_invitation_claim,
@@ -16,6 +17,7 @@ __all__ = [
     "InvitationClaimConflict",
     "activate_invitation",
     "claim_invitation",
+    "claim_direct_invitation",
     "correct_invitation_email",
     "create_draft_invitation",
     "create_invitation_from_inquiry",

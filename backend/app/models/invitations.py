@@ -62,8 +62,6 @@ class TutorInvitationRecordResponse(InvitationDraftRequest):
 
 class InviteeInvitationResponse(BaseModel):
     email: str
-    display_name: str
-    shared_personal_message: str
 
 
 class InvitationEmailCorrectionRequest(BaseModel):

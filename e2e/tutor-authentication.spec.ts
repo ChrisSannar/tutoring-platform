@@ -119,7 +119,10 @@ test("Invitee opens a personalized setup page without the Private Tutor Note", a
 
   await page.goto(invitationLink);
 
-  await expect(page.getByText("invitee@example.com")).toBeVisible();
+  await expect(page.getByLabel("Bound email")).toHaveValue(
+    "invitee@example.com",
+  );
+  await expect(page.getByLabel("Bound email")).toBeEditable({ editable: false });
 });
 
 test("Tutor corrects an active Invitation email", async ({ page }) => {

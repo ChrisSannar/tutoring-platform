@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import asyncio
 import os
 from pathlib import Path
 import socket
@@ -21,6 +22,8 @@ async def active_invitation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     email: str = "invitee@example.com",
+    direct: bool = False,
+    linked: bool = False,
 ) -> tuple[httpx.AsyncClient, str]:
     database_url = f"sqlite:///{tmp_path / 'invitation-claim.sqlite3'}"
     alembic_config = Config("backend/alembic.ini")
@@ -58,22 +61,180 @@ async def active_invitation(
         "Origin": "http://testserver",
         "X-CSRF-Token": authenticated.json()["csrf_token"],
     }
-    created = await client.post(
-        "/api/tutor/invitations",
-        headers=headers,
-        json={
+    invitation_body = (
+        {"email": email}
+        if direct
+        else {
             "email": email,
             "display_name": "Avery",
             "shared_personal_message": "Welcome.",
             "private_tutor_note": "Tutor-only.",
-        },
+        }
     )
-    activated = await client.post(
-        f"/api/tutor/invitations/{created.json()['id']}/activate",
-        headers=headers,
-    )
+    if linked:
+        await client.post(
+            "/api/inquiries",
+            json={"email": email, "message": "Please consider tutoring me."},
+        )
+        inquiries = await client.get("/api/tutor/inquiries")
+        created = await client.post(
+            f"/api/tutor/inquiries/{inquiries.json()['inquiries'][0]['id']}/invitation",
+            headers=headers,
+        )
+    else:
+        created = await client.post(
+            "/api/tutor/invitations", headers=headers, json=invitation_body
+        )
+    invitation_url = created.json().get("invitation_url")
+    if invitation_url is None:
+        activated = await client.post(
+            f"/api/tutor/invitations/{created.json()['id']}/activate",
+            headers=headers,
+        )
+        invitation_url = activated.json()["invitation_url"]
     client.cookies.clear()
-    return client, activated.json()["invitation_url"].removeprefix("/invite/")
+    return client, invitation_url.removeprefix("/invite/")
+
+
+@pytest.mark.anyio
+async def test_original_invitation_link_claims_a_student_session_and_promotion(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, invitation_token = await active_invitation(
+        monkeypatch, tmp_path, direct=True
+    )
+    try:
+        opened = await client.get(f"/api/invitations/{invitation_token}")
+        claimed = await client.post(
+            f"/api/invitations/{invitation_token}/claim",
+            json={"display_name": "Avery Chen"},
+        )
+        student_session = await client.get("/api/student/session")
+        funding = await client.get("/api/student/funding")
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert opened.json()["email"] == "invitee@example.com"
+    assert claimed.status_code == 200
+    assert claimed.json() == {
+        "status": "claimed",
+        "role": "student",
+        "email": "invitee@example.com",
+        "display_name": "Avery Chen",
+        "csrf_token": claimed.json()["csrf_token"],
+    }
+    assert claimed.cookies["tutoring_session"]
+    assert student_session.status_code == 200
+    assert funding.json() == {
+        "first_session_promotion": "available",
+        "session_credits": 0,
+    }
+
+
+@pytest.mark.anyio
+async def test_one_step_claim_requires_a_non_empty_display_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, invitation_token = await active_invitation(
+        monkeypatch, tmp_path, direct=True
+    )
+    try:
+        rejected = await client.post(
+            f"/api/invitations/{invitation_token}/claim",
+            json={"display_name": "   "},
+        )
+        accepted = await client.post(
+            f"/api/invitations/{invitation_token}/claim",
+            json={"display_name": "Avery"},
+        )
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert rejected.status_code == 422
+    assert accepted.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_claimed_invitee_moves_from_the_inquiry_queue_to_the_student_list(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, invitation_token = await active_invitation(
+        monkeypatch, tmp_path, direct=True, linked=True
+    )
+    try:
+        await client.get(f"/api/invitations/{invitation_token}")
+        await client.post(
+            f"/api/invitations/{invitation_token}/claim",
+            json={"display_name": "Avery Chen"},
+        )
+        await client.post(
+            "/api/auth/magic-links", json={"email": "tutor@example.com"}
+        )
+        outbox = await client.get("/api/development/outbox")
+        tutor_token = parse_qs(
+            urlparse(outbox.json()["messages"][-1]["magic_link"]).query
+        )["token"][0]
+        await client.post(
+            "/api/auth/magic-links/confirm", json={"token": tutor_token}
+        )
+        inquiries = await client.get("/api/tutor/inquiries")
+        students = await client.get("/api/tutor/students")
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert inquiries.json() == {"inquiries": []}
+    assert students.json() == {
+        "students": [
+            {
+                "id": students.json()["students"][0]["id"],
+                "email": "invitee@example.com",
+                "display_name": "Avery Chen",
+            }
+        ]
+    }
+
+
+@pytest.mark.anyio
+async def test_concurrent_original_link_claims_have_exactly_one_winner(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    setup_client, invitation_token = await active_invitation(
+        monkeypatch, tmp_path, direct=True
+    )
+    await setup_client.aclose()
+    application = create_app()
+    first = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://testserver"
+    )
+    second = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://testserver"
+    )
+    try:
+        responses = await asyncio.gather(
+            first.post(
+                f"/api/invitations/{invitation_token}/claim",
+                json={"display_name": "Avery One"},
+            ),
+            second.post(
+                f"/api/invitations/{invitation_token}/claim",
+                json={"display_name": "Avery Two"},
+            ),
+        )
+        winner = first if responses[0].status_code == 200 else second
+        funding = await winner.get("/api/student/funding")
+    finally:
+        await first.aclose()
+        await second.aclose()
+        get_settings.cache_clear()
+
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    assert funding.json() == {
+        "first_session_promotion": "available",
+        "session_credits": 0,
+    }
 
 
 @pytest.mark.anyio
@@ -247,7 +408,9 @@ async def test_invitation_claim_rotates_the_existing_browser_session(
 async def test_one_email_cannot_be_associated_with_multiple_student_accounts(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    client, first_invitation_token = await active_invitation(monkeypatch, tmp_path)
+    client, first_invitation_token = await active_invitation(
+        monkeypatch, tmp_path, direct=True
+    )
     try:
         await client.post("/api/auth/magic-links", json={"email": "tutor@example.com"})
         outbox = await client.get("/api/development/outbox")
@@ -264,45 +427,20 @@ async def test_one_email_cannot_be_associated_with_multiple_student_accounts(
         second = await client.post(
             "/api/tutor/invitations",
             headers=headers,
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome again.",
-                "private_tutor_note": "Tutor-only.",
-            },
+            json={"email": "invitee@example.com"},
         )
-        activated_second = await client.post(
-            f"/api/tutor/invitations/{second.json()['id']}/activate",
-            headers=headers,
+        second_invitation_token = second.json()["invitation_url"].removeprefix(
+            "/invite/"
         )
-        second_invitation_token = activated_second.json()[
-            "invitation_url"
-        ].removeprefix("/invite/")
         client.cookies.clear()
-        await client.post(
-            f"/api/invitations/{first_invitation_token}/magic-links",
-            json={"email": "invitee@example.com"},
-        )
-        outbox = await client.get("/api/development/outbox")
-        first_claim_token = parse_qs(
-            urlparse(outbox.json()["messages"][-1]["magic_link"]).query
-        )["token"][0]
-        await client.post(
-            f"/api/invitations/{second_invitation_token}/magic-links",
-            json={"email": "invitee@example.com"},
-        )
-        outbox = await client.get("/api/development/outbox")
-        second_claim_token = parse_qs(
-            urlparse(outbox.json()["messages"][-1]["magic_link"]).query
-        )["token"][0]
         first_claim = await client.post(
-            "/api/invitation-claims/confirm",
-            json={"token": first_claim_token, "display_name": "Avery"},
+            f"/api/invitations/{first_invitation_token}/claim",
+            json={"display_name": "Avery"},
         )
         client.cookies.clear()
         second_claim = await client.post(
-            "/api/invitation-claims/confirm",
-            json={"token": second_claim_token, "display_name": "Avery Two"},
+            f"/api/invitations/{second_invitation_token}/claim",
+            json={"display_name": "Avery Two"},
         )
     finally:
         await client.aclose()

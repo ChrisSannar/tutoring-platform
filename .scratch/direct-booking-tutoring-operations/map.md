@@ -15,10 +15,13 @@
   redisplay material, with one-step manual or Inquiry-linked creation and terminal
   erasure. Evidence: `issues/02-retrievable-invitation-link-management.md` and
   `../../docs/adr/0004-encrypt-retrievable-invitation-links.md`.
+- Ticket 03 resolved: the original Invitation Link now supports observational setup
+  reads and one atomic Student, Student Session, and First Session Promotion claim;
+  linked Inquiries leave active work. Evidence:
+  `issues/03-one-step-student-account-claim.md`.
 
 ## Fog
 
-- Ticket 03 replaces the transitional verification-link claim ceremony with one-step
-  account setup from the original Invitation Link.
+- Ticket 04 remains independently available for the role-aware returning-login flow.
 - Payment and Credit Ledger retention rules remain required before production payment
   data is accepted.

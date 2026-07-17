@@ -52,6 +52,7 @@ export function PendingSessionRequests({ csrfToken }: { csrfToken: string }) {
     setDeletionStudentId("");
     setDeletionConfirmation("");
     setDeletionMessage("Collected pilot data deleted");
+    window.dispatchEvent(new Event("students-changed"));
   }
 
   return (

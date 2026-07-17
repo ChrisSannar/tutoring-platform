@@ -24,7 +24,7 @@ UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache \
 
 status=0
 PLAYWRIGHT_BROWSERS_PATH=/tmp/tutoring-platform-playwright \
-  playwright test --config e2e/playwright.config.ts || status=$?
+  playwright test --config e2e/playwright.config.ts "$@" || status=$?
 
 cleanup
 if [[ -e "${state_directory}" ]]; then

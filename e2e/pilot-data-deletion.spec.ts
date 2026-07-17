@@ -20,11 +20,8 @@ test("Tutor deliberately deletes collected Student pilot data", async ({
   const invitationLink = await manualInvitation.getByLabel("Invitation link").inputValue();
 
   await page.goto(invitationLink);
-  await page.getByRole("button", { name: "Email verification link" }).click();
-  outbox = await (await page.request.get("/api/development/outbox")).json();
-  await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByLabel("Display name").fill("Delete Me");
-  await page.getByRole("button", { name: "Confirm Invitation Claim" }).click();
+  await page.getByRole("button", { name: "Create Account" }).click();
   await page.getByLabel("Service").selectOption("Algebra tutoring");
   await page.getByLabel("Preferred start").fill("2026-07-20T13:00");
   await page.getByLabel("Timezone").fill("America/Chicago");
@@ -38,7 +35,12 @@ test("Tutor deliberately deletes collected Student pilot data", async ({
   outbox = await (await page.request.get("/api/development/outbox")).json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await expect(page.getByText("Delete Me")).toBeVisible();
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: "Algebra tutoring" })
+      .getByRole("heading", { name: "Delete Me" }),
+  ).toBeVisible();
 
   const sessionRequests = await (
     await page.request.get("/api/tutor/session-requests")
