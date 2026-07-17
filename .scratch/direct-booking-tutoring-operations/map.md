@@ -23,5 +23,7 @@
 ## Fog
 
 - Ticket 04 remains independently available for the role-aware returning-login flow.
+- Ticket 05 settings are implemented; its non-retroactive Booking/payment and Meeting
+  Details snapshot proof remains open until the Booking seam exists.
 - Payment and Credit Ledger retention rules remain required before production payment
   data is accepted.

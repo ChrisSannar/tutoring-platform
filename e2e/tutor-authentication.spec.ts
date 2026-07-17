@@ -21,10 +21,19 @@ test("Tutor signs in through the development outbox and logs out", async ({
     page.getByRole("heading", { name: "Tutor workspace" }),
   ).toBeVisible();
 
+  await page.getByLabel("Session price (USD)").fill("82.50");
+  await page.getByLabel("Tutor timezone").fill("America/New_York");
+  await page
+    .getByLabel("Default remote Meeting Details")
+    .fill("https://meet.example.com/tutor");
+  await page.getByRole("button", { name: "Save business settings" }).click();
+  await expect(page.getByText("Business settings saved")).toBeVisible();
+
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "Tutor workspace" }),
   ).toBeVisible();
+  await expect(page.getByLabel("Session price (USD)")).toHaveValue("82.50");
 
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(

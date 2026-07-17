@@ -1,3 +1,4 @@
+import { BusinessSettings } from "./BusinessSettings";
 import { InvitationManager } from "./InvitationManager";
 import { InquiryQueue } from "./InquiryQueue";
 import { PendingSessionRequests } from "./PendingSessionRequests";
@@ -12,6 +13,7 @@ export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
   return (
     <main><section className="hero">
       <h1>Tutor workspace</h1>
+      <BusinessSettings csrfToken={csrfToken} />
       <StudentList />
       <PendingSessionRequests csrfToken={csrfToken} />
       <InvitationManager csrfToken={csrfToken} />
