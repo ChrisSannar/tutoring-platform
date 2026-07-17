@@ -1,64 +1,35 @@
-# Current Handoff — 2026-07-15
+# Current Handoff — 2026-07-17
 
-## Completed
+## Current state
 
-- Finished the product grilling for the secure, invite-only, single-Tutor platform.
-- Recorded the accepted product/security decisions in `docs/PRODUCT-GRILLING.md` and
-  `docs/PRODUCT-DECISION-SHEET.md`.
-- Established canonical domain language in `CONTEXT.md` and three architecture ADRs.
-- Configured the engineering skills for a local Markdown tracker through `AGENTS.md`
-  and `docs/agents/`.
-- Published the `ready-for-agent` spec at
-  `.scratch/secure-invite-only-tutoring-platform/spec.md`.
-- Published eight approved, linear tracer-bullet tickets beneath
-  `.scratch/secure-invite-only-tutoring-platform/issues/`.
-- Completed ticket 01 with a public React landing page, sanitized FastAPI liveness,
-  browser security headers, locked dependencies, and root-owned Playwright orchestration.
-- Confirmed TDD seams:
-  1. Playwright for the full user journey.
-  2. Black-box HTTP tests for API and security behavior.
+The direct-Booking product slice is complete. Public Inquiry intake leads to an
+Inquiry-linked Invitation, one-step Student claim, promotion/credit/paid Booking,
+Booking changes, refunds, and published Shared Lesson Notes. Direct Booking is the sole
+scheduling model.
 
-## Approved ticket order
+The former Session Request pilot was discarded by migration `20260717_0017`. Historical
+rows are dropped without creating Bookings; its old routes, models, tests, service
+selector, and Student/Tutor UI are removed.
 
-1. Public Application Shell and Liveness — resolved
-2. SQLite Schema Readiness
-3. Invite-Only Tutor Authentication
-4. Tutor Creates a Personalized Invitation
-5. Invitee Opens and Tutor Manages an Invitation
-6. Invitee Claims the Invitation
-7. Student Submits a Session Request
-8. Tutor Deletes Collected Pilot Data
+## Verification
 
-Each ticket is blocked by the preceding ticket. Implement with red-green TDD and commit
-each completed ticket separately.
+Run from repository root:
 
-## Current repository state
+```bash
+bun run test
+```
 
-- The planning/domain baseline is committed.
-- Ticket 01 application code is implemented, verified, and committed separately from
-  the planning baseline.
-- Root `bun run setup` performs frozen Bun installation and locked Python synchronization.
-- Root `bun run test` runs black-box HTTP and Playwright behavior checks.
-- Git index writes require escalation because `.git` is read-only in the normal sandbox.
+The backend suite includes authorization, CSRF/origin, ownership, idempotency,
+concurrency, funding, Stripe signature, refund, and retirement behavior. Playwright owns
+isolated migrated state and both randomized-port processes. Its critical journey proves
+Inquiry through published Lesson Note without external services.
 
-## Restart sequence
+## Operational notes
 
-1. Read `AGENTS.md`, `CONTEXT.md`, ADR 0002, the spec, and ticket 02.
-2. Check `git status` and confirm the ticket 01 implementation commit exists.
-3. Implement ticket 02 test-first at the confirmed black-box HTTP seam:
-   - first produce a failing external-behavior test;
-   - add only enough implementation to pass;
-   - run the relevant checks;
-   - commit ticket 02 by itself.
-4. Continue tickets 03 through 08 in dependency order, one verified commit per ticket.
-
-## Key Day 1 contracts
-
-- React/TypeScript/Bun/Vite frontend and FastAPI/SQLite backend.
-- Synchronous SQLAlchemy 2.x with Alembic; the API never applies migrations itself.
-- Public `GET /api/health` returns only `{"status":"ok"}`.
-- Public `GET /api/ready` checks database access and Alembic head, returning sanitized
-  `database` or `schema` failure reasons.
-- `bun run test:e2e` owns a temporary migrated database, both application processes,
-  Playwright execution, teardown, and cleanup without pre-running services.
-- Security is a completion gate for every slice.
+- Production requires an explicit database URL, Invitation encryption key, Stripe mode,
+  Stripe secret key, and Stripe webhook secret.
+- Development payment uses deterministic provider fakes; browser returns never prove
+  payment.
+- Use `bun run migrate:dev` before serving an existing development database.
+- Use separate Tutor and Student browser profiles because role sign-in rotates the same
+  session-cookie name.

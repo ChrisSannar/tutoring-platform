@@ -1,7 +1,6 @@
 import { BusinessSettings } from "./BusinessSettings";
 import { InvitationManager } from "./InvitationManager";
 import { InquiryQueue } from "./InquiryQueue";
-import { PendingSessionRequests } from "./PendingSessionRequests";
 import { StudentList } from "./StudentList";
 import { LoginRequestQueue } from "./LoginRequestQueue";
 import { AvailabilityCalendar } from "./AvailabilityCalendar";
@@ -19,11 +18,12 @@ export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
       <h1>Tutor workspace</h1>
       <BusinessSettings csrfToken={csrfToken} />
       <AvailabilityCalendar csrfToken={csrfToken} />
-      <BookingCalendar csrfToken={csrfToken} />
-      <StudentList csrfToken={csrfToken} />
+      <section className="tutor-dashboard-grid" aria-label="Students and weekly Booking calendar">
+        <div className="tutor-students"><StudentList csrfToken={csrfToken} /></div>
+        <div className="tutor-calendar"><BookingCalendar csrfToken={csrfToken} /></div>
+      </section>
       <RefundQueue csrfToken={csrfToken} />
       <LoginRequestQueue csrfToken={csrfToken} />
-      <PendingSessionRequests csrfToken={csrfToken} />
       <InvitationManager csrfToken={csrfToken} />
       <InquiryQueue csrfToken={csrfToken} />
       <button onClick={onLogOut}>Log out</button>

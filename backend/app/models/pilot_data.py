@@ -10,7 +10,7 @@ class PilotDataDeletionRequest(BaseModel):
 class RemovedPilotDataResponse(BaseModel):
     invitations: int
     student_sessions: int
-    session_requests: int
+    bookings: int
 
 
 class PilotDataDeletionResponse(BaseModel):

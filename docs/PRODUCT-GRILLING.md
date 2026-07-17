@@ -1,5 +1,8 @@
 # Product Grilling: Single-Tutor Platform (2026-07-15 through 2026-07-17)
 
+> This is a historical decision transcript. References to Session Request describe the
+> original pilot; direct Booking is now the sole scheduling model.
+
 *Product scope for a three-day build used to test the Gauntlet's adaptive
 accountability loop.*
 

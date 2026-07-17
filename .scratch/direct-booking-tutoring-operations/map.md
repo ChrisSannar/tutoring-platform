@@ -60,6 +60,10 @@
   decline restores it once, while idempotent full provider success records immutable
   refund evidence and leaves no spendable replacement value. Evidence:
   `issues/14-refund-request-review.md`.
+- Ticket 15 resolved: direct Booking is the sole scheduling model; an explicit migration
+  discards historical Session Request rows without conversion, responsive dashboards
+  expose one workflow, and isolated Playwright proves Inquiry through published note.
+  Evidence: `issues/15-retire-session-request-and-prove-critical-journey.md`.
 
 ## Fog
 

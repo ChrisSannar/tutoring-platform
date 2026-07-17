@@ -44,6 +44,33 @@ main {
   box-shadow: 0 1.5rem 4rem rgb(49 54 43 / 12%);
 }
 
+.student-dashboard-grid,
+.tutor-dashboard-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.student-calendar { grid-area: calendar; }
+.student-notes { grid-area: notes; }
+.tutor-students { grid-area: students; }
+.tutor-calendar { grid-area: calendar; }
+
+.student-dashboard-grid { grid-template-areas: "calendar" "notes"; }
+.tutor-dashboard-grid { grid-template-areas: "students" "calendar"; }
+
+@media (min-width: 60rem) {
+  .hero:has(.student-dashboard-grid),
+  .hero:has(.tutor-dashboard-grid) { width: min(76rem, 100%); }
+  .student-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-areas: "notes calendar";
+  }
+  .tutor-dashboard-grid {
+    grid-template-columns: minmax(18rem, 0.8fr) minmax(0, 1.4fr);
+    grid-template-areas: "students calendar";
+  }
+}
+
 .eyebrow {
   margin: 0 0 1rem;
   color: #6d513f;

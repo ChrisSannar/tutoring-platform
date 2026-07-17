@@ -1,6 +1,6 @@
 # Direct Booking and Tutoring Operations
 
-Status: ready-for-agent
+Status: resolved
 
 ## Problem Statement
 

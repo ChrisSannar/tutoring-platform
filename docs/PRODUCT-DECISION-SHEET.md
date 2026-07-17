@@ -1,4 +1,7 @@
-# Product Decision Sheet
+# Historical Pilot Product Decision Sheet
+
+> Historical evidence only. The Session Request decisions below describe the original
+> pilot and were superseded by direct Booking and migration `20260717_0017`.
 
 **Status:** Accepted for the frozen pilot on 2026-07-15. Decisions 5 through 7 were
 superseded by the direct-Booking flow settled in `PRODUCT-GRILLING.md` on 2026-07-17.

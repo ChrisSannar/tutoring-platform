@@ -34,9 +34,9 @@ def delete_student_pilot_data(
                     ),
                     {"student_account_id": student_account_id},
                 ).scalar_one(),
-                "session_requests": connection.execute(
+                "bookings": connection.execute(
                     text(
-                        "SELECT COUNT(*) FROM session_requests "
+                        "SELECT COUNT(*) FROM bookings "
                         "WHERE student_account_id = :student_account_id"
                     ),
                     {"student_account_id": student_account_id},
@@ -50,20 +50,25 @@ def delete_student_pilot_data(
                 ),
                 {"student_account_id": student_account_id},
             )
-            connection.execute(
-                text(
-                    "DELETE FROM invitations "
-                    "WHERE claimed_account_id = :student_account_id"
-                ),
-                {"student_account_id": student_account_id},
-            )
-            connection.execute(
-                text(
-                    "DELETE FROM session_requests "
-                    "WHERE student_account_id = :student_account_id"
-                ),
-                {"student_account_id": student_account_id},
-            )
+            inquiry_ids = connection.execute(text(
+                "SELECT inquiry_id FROM invitations WHERE claimed_account_id = :student_account_id AND inquiry_id IS NOT NULL"
+            ), {"student_account_id": student_account_id}).scalars().all()
+            for statement in [
+                "DELETE FROM refund_evidence WHERE refund_request_id IN (SELECT id FROM refund_requests WHERE student_account_id = :student_account_id)",
+                "DELETE FROM refund_requests WHERE student_account_id = :student_account_id",
+                "DELETE FROM lesson_notes WHERE booking_id IN (SELECT id FROM bookings WHERE student_account_id = :student_account_id)",
+                "DELETE FROM payment_evidence WHERE booking_id IN (SELECT id FROM bookings WHERE student_account_id = :student_account_id)",
+                "DELETE FROM booking_change_receipts WHERE booking_id IN (SELECT id FROM bookings WHERE student_account_id = :student_account_id)",
+                "DELETE FROM bookings WHERE student_account_id = :student_account_id",
+                "DELETE FROM checkout_sessions WHERE student_account_id = :student_account_id",
+                "DELETE FROM slot_holds WHERE student_account_id = :student_account_id",
+                "DELETE FROM credit_ledger_entries WHERE student_account_id = :student_account_id",
+                "DELETE FROM login_requests WHERE account_id = :student_account_id",
+                "DELETE FROM invitations WHERE claimed_account_id = :student_account_id",
+            ]:
+                connection.execute(text(statement), {"student_account_id": student_account_id})
+            for inquiry_id in inquiry_ids:
+                connection.execute(text("DELETE FROM inquiries WHERE id = :id"), {"id": inquiry_id})
             connection.execute(
                 text(
                     "DELETE FROM authentication_sessions "
