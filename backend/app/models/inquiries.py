@@ -36,6 +36,7 @@ class TutorInquiryResponse(BaseModel):
     email: str
     message: str
     status: Literal["new", "invited"]
+    invitation_id: str | None = None
 
 
 class TutorInquiryListResponse(BaseModel):

@@ -14,22 +14,16 @@ test("Tutor deliberately deletes collected Student pilot data", async ({
   let outbox = await (await page.request.get("/api/development/outbox")).json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await page.getByLabel("Invitee email").fill("delete-me@example.com");
-  await page.getByLabel("Invitee display name").fill("Delete Me");
-  await page
-    .getByLabel("Shared Personal Message")
-    .fill("This content must be removed.");
-  await page
-    .getByLabel("Private Tutor Note")
-    .fill("This private content must be removed.");
-  await page.getByRole("button", { name: "Create Invitation" }).click();
-  await page.getByRole("button", { name: "Activate Invitation" }).click();
-  const invitationLink = await page.getByLabel("Invitation link").inputValue();
+  const manualInvitation = page.getByLabel("Manual Invitation");
+  await manualInvitation.getByLabel("Invitee email").fill("delete-me@example.com");
+  await manualInvitation.getByRole("button", { name: "Create Invitation" }).click();
+  const invitationLink = await manualInvitation.getByLabel("Invitation link").inputValue();
 
   await page.goto(invitationLink);
   await page.getByRole("button", { name: "Email verification link" }).click();
   outbox = await (await page.request.get("/api/development/outbox")).json();
   await page.goto(outbox.messages.at(-1).magic_link);
+  await page.getByLabel("Display name").fill("Delete Me");
   await page.getByRole("button", { name: "Confirm Invitation Claim" }).click();
   await page.getByLabel("Service").selectOption("Algebra tutoring");
   await page.getByLabel("Preferred start").fill("2026-07-20T13:00");

@@ -7,6 +7,7 @@ from app.invitations.claim_tokens import (
     issue_invitation_claim_token,
 )
 from app.invitations.lifecycle import correct_invitation_email, revoke_invitation
+from app.invitations.inquiry_creation import create_invitation_from_inquiry
 from app.invitations.records import create_draft_invitation, get_tutor_invitation
 from app.invitations.retrieval import retrieve_invitation_link
 from app.invitations.tokens import get_active_invitation_by_token
@@ -17,6 +18,7 @@ __all__ = [
     "claim_invitation",
     "correct_invitation_email",
     "create_draft_invitation",
+    "create_invitation_from_inquiry",
     "create_manual_invitation",
     "get_active_invitation_by_token",
     "get_active_invitation_claim",

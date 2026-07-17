@@ -18,14 +18,10 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
   await page.goto(tutorOutbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
 
-  await page.getByLabel("Invitee email").fill("invitee@example.com");
-  await page.getByLabel("Invitee display name").fill("Avery");
-  await page
-    .getByLabel("Shared Personal Message")
-    .fill("I made this Invitation for you.");
-  await page.getByRole("button", { name: "Create Invitation" }).click();
-  await page.getByRole("button", { name: "Activate Invitation" }).click();
-  const invitationLink = await page.getByLabel("Invitation link").inputValue();
+  const manualInvitation = page.getByLabel("Manual Invitation");
+  await manualInvitation.getByLabel("Invitee email").fill("invitee@example.com");
+  await manualInvitation.getByRole("button", { name: "Create Invitation" }).click();
+  const invitationLink = await manualInvitation.getByLabel("Invitation link").inputValue();
 
   await page.goto(invitationLink);
 

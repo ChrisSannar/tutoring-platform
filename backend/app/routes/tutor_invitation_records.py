@@ -60,7 +60,10 @@ async def activate_draft_invitation(
     require_mutation(request, "tutor")
     settings = context_from(request).settings
     activated = activate_invitation(
-        settings.database_url, invitation_id, settings.invitation_ttl_seconds
+        settings.database_url,
+        invitation_id,
+        settings.invitation_ttl_seconds,
+        settings.invitation_encryption_key.get_secret_value(),
     )
     if activated is None:
         raise HTTPException(status_code=404)

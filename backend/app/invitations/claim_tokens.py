@@ -19,7 +19,8 @@ def issue_invitation_claim_token(
             invitation = connection.execute(
                 text(
                     "SELECT id FROM invitations WHERE token_hash = :token_hash "
-                    "AND email = :email AND status = 'active' AND expires_at > :now"
+                    "AND email = :email AND status IN ('active', 'created', 'opened') "
+                    "AND expires_at > :now"
                 ),
                 {
                     "token_hash": sha256(raw_invitation_token.encode()).hexdigest(),
@@ -60,7 +61,7 @@ def get_active_invitation_claim(
                     "WHERE invitation_claim_tokens.token_hash = :token_hash "
                     "AND invitation_claim_tokens.consumed_at IS NULL "
                     "AND invitation_claim_tokens.expires_at > :now "
-                    "AND invitations.status = 'active'"
+                    "AND invitations.status IN ('active', 'created', 'opened')"
                 ),
                 {
                     "token_hash": sha256(raw_claim_token.encode()).hexdigest(),

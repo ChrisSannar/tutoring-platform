@@ -8,9 +8,9 @@ from app.invitations import (
     revoke_invitation,
 )
 from app.models.invitations import (
-    ActivatedInvitationResponse,
     CorrectedInvitationResponse,
     InvitationEmailCorrectionRequest,
+    InvitationLinkChangeResponse,
     RevokedInvitationResponse,
 )
 from app.http.security import require_mutation
@@ -54,16 +54,19 @@ async def revoke_active_invitation(
 
 @router.post(
     "/api/tutor/invitations/{invitation_id}/regenerate",
-    response_model=ActivatedInvitationResponse,
+    response_model=InvitationLinkChangeResponse,
 )
 async def regenerate_active_invitation(
     invitation_id: str, request: Request
-) -> ActivatedInvitationResponse:
+) -> InvitationLinkChangeResponse:
     require_mutation(request, "tutor")
     settings = context_from(request).settings
     regenerated = regenerate_invitation(
-        settings.database_url, invitation_id, settings.invitation_ttl_seconds
+        settings.database_url,
+        invitation_id,
+        settings.invitation_ttl_seconds,
+        settings.invitation_encryption_key.get_secret_value(),
     )
     if regenerated is None:
         raise HTTPException(status_code=404)
-    return ActivatedInvitationResponse.model_validate(regenerated)
+    return InvitationLinkChangeResponse.model_validate(regenerated)

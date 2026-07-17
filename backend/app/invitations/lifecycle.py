@@ -10,7 +10,8 @@ def correct_invitation_email(
             corrected = connection.execute(
                 text(
                     "UPDATE invitations SET email = :email WHERE id = :id "
-                    "AND status IN ('draft', 'active') RETURNING id, email, status"
+                    "AND status IN ('draft', 'active', 'created', 'opened') "
+                    "RETURNING id, email, status"
                 ),
                 {"id": invitation_id, "email": email.strip().lower()},
             ).mappings().first()
@@ -24,8 +25,9 @@ def revoke_invitation(database_url: str, invitation_id: str) -> dict[str, str] |
         with engine.begin() as connection:
             revoked = connection.execute(
                 text(
-                    "UPDATE invitations SET status = 'revoked' WHERE id = :id "
-                    "AND status = 'active' RETURNING id, status"
+                    "UPDATE invitations SET status = 'revoked', token_hash = NULL, "
+                    "token_ciphertext = NULL WHERE id = :id AND status IN "
+                    "('active', 'created', 'opened') RETURNING id, status"
                 ),
                 {"id": invitation_id},
             ).mappings().first()

@@ -14,7 +14,7 @@ def retrieve_invitation_link(
             invitation = connection.execute(
                 text(
                     "SELECT token_ciphertext, expires_at FROM invitations WHERE id = :id "
-                    "AND status IN ('created', 'opened')"
+                    "AND status IN ('active', 'created', 'opened')"
                 ),
                 {"id": invitation_id},
             ).mappings().first()

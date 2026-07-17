@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from cryptography.fernet import Fernet
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
@@ -28,6 +29,16 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def require_database_boundary(self) -> "Settings":
+        encryption_key = self.invitation_encryption_key.get_secret_value()
+        if not encryption_key and self.environment == "development":
+            encryption_key = "ZGV2ZWxvcG1lbnQtaW52aXRhdGlvbi1rZXkhISEhISE="
+            self.invitation_encryption_key = SecretStr(encryption_key)
+        if not encryption_key:
+            raise ValueError("invitation_encryption_key is required outside development")
+        try:
+            Fernet(encryption_key.encode())
+        except (TypeError, ValueError) as error:
+            raise ValueError("invitation_encryption_key must be a Fernet key") from error
         if self.database_url:
             database_url = self.database_url
         elif self.environment == "development":

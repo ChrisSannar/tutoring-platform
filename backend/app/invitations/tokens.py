@@ -11,8 +11,9 @@ def get_active_invitation_by_token(
         with engine.begin() as connection:
             connection.execute(
                 text(
-                    "UPDATE invitations SET status = 'expired' "
-                    "WHERE token_hash = :token_hash AND status = 'active' "
+                    "UPDATE invitations SET status = 'expired', token_hash = NULL, "
+                    "token_ciphertext = NULL WHERE token_hash = :token_hash "
+                    "AND status IN ('active', 'created', 'opened') "
                     "AND expires_at <= CURRENT_TIMESTAMP"
                 ),
                 {"token_hash": token_hash},
@@ -21,10 +22,20 @@ def get_active_invitation_by_token(
                 text(
                     "SELECT email, display_name, shared_personal_message "
                     "FROM invitations WHERE token_hash = :token_hash "
-                    "AND status = 'active' AND expires_at > CURRENT_TIMESTAMP"
+                    "AND status IN ('active', 'created', 'opened') "
+                    "AND expires_at > CURRENT_TIMESTAMP"
                 ),
                 {"token_hash": token_hash},
             ).mappings().first()
-            return dict(invitation) if invitation is not None else None
+            if invitation is None:
+                return None
+            connection.execute(
+                text(
+                    "UPDATE invitations SET status = 'opened' "
+                    "WHERE token_hash = :token_hash AND status = 'created'"
+                ),
+                {"token_hash": token_hash},
+            )
+            return dict(invitation)
     finally:
         engine.dispose()

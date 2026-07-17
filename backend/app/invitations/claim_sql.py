@@ -1,7 +1,7 @@
 CLAIM_INVITATION = (
     "UPDATE invitations SET status = 'claimed', display_name = :display_name, "
-    "claimed_account_id = :account_id, token_hash = NULL "
-    "WHERE status = 'active' AND id = (SELECT invitation_id "
+    "claimed_account_id = :account_id, token_hash = NULL, token_ciphertext = NULL "
+    "WHERE status IN ('active', 'created', 'opened') AND id = (SELECT invitation_id "
     "FROM invitation_claim_tokens WHERE token_hash = :token_hash "
     "AND consumed_at IS NULL AND expires_at > :now) RETURNING id, email"
 )

@@ -9,7 +9,11 @@ from app.models.inquiries import InquiryDeletionConfirmation, TutorInquiryListRe
 router = APIRouter()
 
 
-@router.get("/api/tutor/inquiries", response_model=TutorInquiryListResponse)
+@router.get(
+    "/api/tutor/inquiries",
+    response_model=TutorInquiryListResponse,
+    response_model_exclude_none=True,
+)
 async def view_active_inquiries(request: Request) -> TutorInquiryListResponse:
     require_session(request, "tutor")
     inquiries = list_active_inquiries(context_from(request).settings.database_url)
