@@ -34,6 +34,16 @@ def test_non_development_requires_a_valid_invitation_encryption_key(
             _env_file=None,
         )
 
+
+def test_production_payment_configuration_fails_closed() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment="production",
+            database_url="sqlite:///:memory:",
+            invitation_encryption_key="a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=",
+            _env_file=None,
+        )
+
     with pytest.raises(ValidationError):
         Settings(
             environment="production",

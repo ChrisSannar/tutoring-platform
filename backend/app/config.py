@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     session_inactivity_seconds: int = 30 * 24 * 60 * 60
     session_absolute_seconds: int = 90 * 24 * 60 * 60
     application_origin: str = "http://127.0.0.1:7310"
+    stripe_secret_key: SecretStr = SecretStr("")
+    stripe_webhook_secret: SecretStr = SecretStr("")
+    stripe_provider_mode: Literal["fake", "stripe"] = "fake"
 
     model_config = SettingsConfigDict(
         env_prefix="TUTORING_",
@@ -35,6 +38,12 @@ class Settings(BaseSettings):
             self.invitation_encryption_key = SecretStr(encryption_key)
         if not encryption_key:
             raise ValueError("invitation_encryption_key is required outside development")
+        if self.environment == "production" and (
+            self.stripe_provider_mode != "stripe"
+            or not self.stripe_secret_key.get_secret_value()
+            or not self.stripe_webhook_secret.get_secret_value()
+        ):
+            raise ValueError("production Stripe configuration is required")
         try:
             Fernet(encryption_key.encode())
         except (TypeError, ValueError) as error:

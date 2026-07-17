@@ -3,6 +3,7 @@ import { LoginAuthentication } from "../auth/LoginAuthentication";
 import { InviteeSetup } from "../invitations/InviteeSetup";
 import { LandingPage } from "../landing/LandingPage";
 import { StudentWorkspace } from "../students/StudentWorkspace";
+import { CheckoutStatus } from "../students/CheckoutStatus";
 import { TutorAuthentication } from "../tutor/TutorAuthentication";
 
 export function Application() {
@@ -16,6 +17,9 @@ export function Application() {
   }
   if (pathname === "/student") {
     return <StudentWorkspace />;
+  }
+  if (pathname === "/checkout/return" || pathname.startsWith("/checkout/fake/")) {
+    return <CheckoutStatus />;
   }
   if (pathname.startsWith("/invite/")) {
     return <InviteeSetup />;

@@ -51,6 +51,11 @@
   to a safely rendered shared accordion and stable Markdown download; confirmed deletion
   clears content but retains evidence. Evidence:
   `issues/12-lesson-note-draft-and-publication.md`.
+- Ticket 13 resolved: server-priced Stripe Checkout creates a 30-minute Slot Hold, while
+  only a timestamp-verified exact-match webhook can create one paid Booking and immutable
+  payment evidence; browser returns remain status-only. Evidence:
+  `issues/13-stripe-checkout-and-slot-holds.md` and
+  `../../docs/adr/0005-fulfill-paid-bookings-from-stripe-webhooks.md`.
 
 ## Fog
 
