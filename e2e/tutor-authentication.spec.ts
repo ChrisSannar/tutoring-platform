@@ -35,6 +35,31 @@ test("Tutor signs in through the development outbox and logs out", async ({
   ).toBeVisible();
   await expect(page.getByLabel("Session price (USD)")).toHaveValue("82.50");
 
+  const availability = page.getByRole("form", { name: "Add Availability" });
+  await availability.getByLabel("Weekday").selectOption("0");
+  await availability.getByLabel("Start time").fill("09:00");
+  await availability.getByLabel("End time").fill("11:30");
+  await availability.getByRole("button", { name: "Add Availability" }).click();
+  const monday = page.getByRole("article", { name: "Monday Availability" });
+  await expect(monday).toBeVisible();
+  await monday.getByLabel("Availability weekday").selectOption("1");
+  await monday.getByRole("button", { name: "Save Availability" }).click();
+  await page.reload();
+  const tuesday = page.getByRole("article", { name: "Tuesday Availability" });
+  await expect(tuesday).toBeVisible();
+  await tuesday.getByRole("button", { name: "Delete Availability" }).click();
+  await expect(tuesday).toHaveCount(0);
+
+  const blocked = page.getByRole("form", { name: "Add Blocked Time" });
+  await blocked.getByLabel("Blocked start").fill("2026-07-20T10:00");
+  await blocked.getByLabel("Blocked end").fill("2026-07-20T11:00");
+  await blocked.getByLabel("Private blocked reason").fill("Private appointment");
+  await blocked.getByRole("button", { name: "Add Blocked Time" }).click();
+  const blockedRow = page.getByRole("article", { name: "Blocked Time" });
+  await expect(blockedRow.getByLabel("Private blocked reason")).toHaveValue("Private appointment");
+  await blockedRow.getByRole("button", { name: "Delete Blocked Time" }).click();
+  await expect(blockedRow).toHaveCount(0);
+
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(
     page.getByRole("heading", { name: "Tutor sign-in" }),

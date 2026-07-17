@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import time
 from uuid import uuid4
 
 from sqlalchemy import create_engine, text
@@ -31,15 +31,26 @@ def list_windows(database_url: str) -> list[dict]:
         engine.dispose()
 
 
-def create_blocked_time(database_url: str, start: datetime, end: datetime, reason: str | None) -> dict:
-    blocked = {"id": str(uuid4()), "start_at": start, "end_at": end, "reason": reason}
+def update_window(database_url: str, window_id: str, weekday: int, start: time, end: time) -> dict | None:
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
-            connection.execute(text(
-                "INSERT INTO blocked_times (id, start_at, end_at, reason) "
-                "VALUES (:id, :start_at, :end_at, :reason)"
-            ), blocked)
-        return blocked
+            row = connection.execute(text(
+                "UPDATE availability_windows SET weekday = :weekday, start_time = :start, "
+                "end_time = :end WHERE id = :id RETURNING id, weekday, start_time, end_time"
+            ), {"id": window_id, "weekday": weekday, "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M")}).mappings().first()
+            return None if row is None else dict(row)
+    finally:
+        engine.dispose()
+
+
+def delete_window(database_url: str, window_id: str) -> bool:
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            result = connection.execute(text(
+                "DELETE FROM availability_windows WHERE id = :id"
+            ), {"id": window_id})
+            return result.rowcount == 1
     finally:
         engine.dispose()

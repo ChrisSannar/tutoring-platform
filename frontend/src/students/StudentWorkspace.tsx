@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { csrfTokenFromCookie } from "../web/csrfToken";
 import type { Student } from "./types";
+import { BookableSlots } from "./BookableSlots";
 
 type SessionRequest = {
   id: string;
@@ -64,6 +65,7 @@ export function StudentWorkspace({ initialStudent }: { initialStudent?: Student 
       <p className="eyebrow">Your tutoring</p>
       <h1>Student workspace</h1>
       <p>Welcome, {student.display_name}</p>
+      <BookableSlots />
       {sessionRequest ? (
         <section>
           <h2>Pending Session Request</h2>

@@ -43,3 +43,14 @@ class BookableSlot(BaseModel):
 class BookableSlotList(BaseModel):
     tutor_timezone: str
     slots: list[BookableSlot]
+
+
+class TutorOverrideInput(BaseModel):
+    start_at: datetime
+    warning: str = Field(min_length=1, max_length=500)
+
+
+class TutorOverrideResponse(TutorOverrideInput):
+    id: str
+    end_at: datetime
+    requires_booking_warning: bool

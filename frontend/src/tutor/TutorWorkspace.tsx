@@ -4,6 +4,7 @@ import { InquiryQueue } from "./InquiryQueue";
 import { PendingSessionRequests } from "./PendingSessionRequests";
 import { StudentList } from "./StudentList";
 import { LoginRequestQueue } from "./LoginRequestQueue";
+import { AvailabilityCalendar } from "./AvailabilityCalendar";
 
 type TutorWorkspaceProps = {
   csrfToken: string;
@@ -15,6 +16,7 @@ export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
     <main><section className="hero">
       <h1>Tutor workspace</h1>
       <BusinessSettings csrfToken={csrfToken} />
+      <AvailabilityCalendar csrfToken={csrfToken} />
       <StudentList csrfToken={csrfToken} />
       <LoginRequestQueue csrfToken={csrfToken} />
       <PendingSessionRequests csrfToken={csrfToken} />
