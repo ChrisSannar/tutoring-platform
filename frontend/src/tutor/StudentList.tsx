@@ -15,6 +15,7 @@ export function StudentList({ csrfToken }: { csrfToken: string }) {
   const [creditReason, setCreditReason] = useState("");
   const [complimentaryStart, setComplimentaryStart] = useState("");
   const [complimentaryFocus, setComplimentaryFocus] = useState("");
+  const [highlightedId, setHighlightedId] = useState("");
 
   useEffect(() => {
     function loadStudents() {
@@ -35,6 +36,18 @@ export function StudentList({ csrfToken }: { csrfToken: string }) {
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [detail]);
+
+  useEffect(() => {
+    function highlightStudent(event: Event) {
+      const studentId = (event as CustomEvent<string>).detail;
+      setHighlightedId(studentId);
+      requestAnimationFrame(() => {
+        document.getElementById(`student-${studentId}`)?.scrollIntoView({ block: "center" });
+      });
+    }
+    window.addEventListener("highlight-student", highlightStudent);
+    return () => window.removeEventListener("highlight-student", highlightStudent);
+  }, []);
 
   async function openStudent(student: Student) {
     const response = await fetch(`/api/tutor/students/${student.id}`);
@@ -94,7 +107,7 @@ export function StudentList({ csrfToken }: { csrfToken: string }) {
       />
       {visibleStudents.length === 0 ? <p>No matching Students.</p> : null}
       {visibleStudents.map((student) => (
-        <article key={student.id}>
+        <article key={student.id} id={`student-${student.id}`} aria-current={highlightedId === student.id ? "true" : undefined}>
           <button onClick={() => openStudent(student)}>{student.display_name}</button>
           <p>{student.email}</p>
         </article>

@@ -30,3 +30,27 @@ class BookingResponse(BaseModel):
     price_cents: int
     currency: Literal["USD"]
     status: Literal["upcoming", "completed", "cancelled"]
+
+
+class MeetingDetailsUpdate(BaseModel):
+    meeting_details: str | None = Field(default=None, max_length=5000)
+
+
+class TutorBookingMove(BaseModel):
+    start_at: datetime
+    override_id: str | None = None
+    warning_acknowledged: bool = False
+
+
+class BookingStudent(BaseModel):
+    id: str
+    display_name: str
+    email: str
+
+
+class TutorCalendarBooking(BookingResponse):
+    student: BookingStudent
+
+
+class TutorCalendarResponse(BaseModel):
+    bookings: list[TutorCalendarBooking]

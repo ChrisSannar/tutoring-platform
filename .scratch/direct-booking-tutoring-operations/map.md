@@ -39,6 +39,10 @@
   credit fallback, idempotency, one-Upcoming, conflict rechecks, snapshots, and explicit
   Complimentary funding. Evidence:
   `issues/09-promotion-credit-and-complimentary-booking.md`.
+- Ticket 10 resolved: the Tutor Booking calendar provides explicit Student-list
+  wayfinding, editable Meeting Details, conflict-safe normal moves, and acknowledged
+  Override moves without altering funding. Evidence:
+  `issues/10-tutor-booking-calendar-and-overrides.md`.
 
 ## Fog
 

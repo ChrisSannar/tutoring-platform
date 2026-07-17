@@ -194,3 +194,67 @@ async def test_override_requires_warning_and_unfunded_student_cannot_book(monkey
     assert unfunded.status_code == 409
     assert without_warning.status_code == 409
     assert with_warning.status_code == 201
+
+
+@pytest.mark.anyio
+async def test_tutor_calendar_edits_and_moves_booking_without_changing_funding(monkeypatch, tmp_path: Path) -> None:
+    tutor, tutor_csrf, student, student_csrf, database_url = await booking_context(monkeypatch, tmp_path)
+    tutor_headers = {"Origin": "http://testserver", "X-CSRF-Token": tutor_csrf}
+    try:
+        created = await student.post(
+            "/api/student/bookings",
+            headers={"Origin": "http://testserver", "X-CSRF-Token": student_csrf, "Idempotency-Key": "calendar-booking"},
+            json={"start_at": "2026-07-20T14:00:00Z", "focus": "Fractions", "confirmed": True},
+        )
+        calendar = await tutor.get("/api/tutor/bookings")
+        booking_id = created.json()["id"]
+        details = await tutor.put(
+            f"/api/tutor/bookings/{booking_id}/meeting-details", headers=tutor_headers,
+            json={"meeting_details": "123 Main Street"},
+        )
+        moved = await tutor.put(
+            f"/api/tutor/bookings/{booking_id}/schedule", headers=tutor_headers,
+            json={"start_at": "2026-07-20T15:00:00Z"},
+        )
+        await tutor.post(
+            "/api/tutor/students/student-2/bookings",
+            headers={**tutor_headers, "Idempotency-Key": "occupied"},
+            json={"start_at": "2026-07-20T16:00:00Z", "focus": None, "complimentary": True},
+        )
+        conflict = await tutor.put(
+            f"/api/tutor/bookings/{booking_id}/schedule", headers=tutor_headers,
+            json={"start_at": "2026-07-20T16:00:00Z"},
+        )
+        override = await tutor.post(
+            "/api/tutor/overrides", headers=tutor_headers,
+            json={"start_at": "2026-09-20T15:00:00Z", "warning": "Outside normal policy"},
+        )
+        unacknowledged = await tutor.put(
+            f"/api/tutor/bookings/{booking_id}/schedule", headers=tutor_headers,
+            json={"start_at": "2026-09-20T15:00:00Z", "override_id": override.json()["id"]},
+        )
+        overridden = await tutor.put(
+            f"/api/tutor/bookings/{booking_id}/schedule", headers=tutor_headers,
+            json={"start_at": "2026-09-20T15:00:00Z", "override_id": override.json()["id"], "warning_acknowledged": True},
+        )
+        denied = await student.get("/api/tutor/bookings")
+        engine = create_engine(database_url)
+        with engine.connect() as connection:
+            funding_events = connection.execute(text(
+                "SELECT event_type, quantity FROM credit_ledger_entries WHERE student_account_id = 'student' ORDER BY created_at, id"
+            )).all()
+        engine.dispose()
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        get_settings.cache_clear()
+
+    assert calendar.json()["bookings"][0]["student"]["display_name"] == "Student"
+    assert details.json()["meeting_details"] == "123 Main Street"
+    assert moved.json()["funding_kind"] == "first_session_promotion"
+    assert conflict.status_code == 409
+    assert unacknowledged.status_code == 409
+    assert overridden.status_code == 200
+    assert overridden.json()["funding_kind"] == "first_session_promotion"
+    assert denied.status_code == 401
+    assert [event for event in funding_events if event[0] == "promotion_consumed"] == [("promotion_consumed", -1)]

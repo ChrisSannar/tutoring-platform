@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Header, Request
 from starlette.exceptions import HTTPException
 
-from app.bookings import create_complimentary_booking, create_student_booking, upcoming_booking
+from app.bookings import create_complimentary_booking, create_student_booking, move_booking, tutor_calendar, upcoming_booking, update_meeting_details
 from app.http.context import context_from
 from app.http.security import require_mutation, require_session
-from app.models.bookings import BookingResponse, ComplimentaryBookingInput, StudentBookingInput
+from app.models.bookings import BookingResponse, ComplimentaryBookingInput, MeetingDetailsUpdate, StudentBookingInput, TutorBookingMove, TutorCalendarResponse
 
 router = APIRouter()
 
@@ -31,5 +31,28 @@ async def complimentary_booking(student_id: str, submission: ComplimentaryBookin
     require_mutation(request, "tutor")
     context = context_from(request)
     result = create_complimentary_booking(context.settings.database_url, student_id, submission.start_at, submission.focus, idempotency_key, context.now(), submission.override_id, submission.warning_acknowledged)
+    if result is None: raise HTTPException(status_code=409)
+    return result
+
+
+@router.get("/api/tutor/bookings", response_model=TutorCalendarResponse)
+async def tutor_bookings(request: Request):
+    require_session(request, "tutor")
+    return {"bookings": tutor_calendar(context_from(request).settings.database_url)}
+
+
+@router.put("/api/tutor/bookings/{booking_id}/meeting-details", response_model=BookingResponse)
+async def edit_meeting_details(booking_id: str, submission: MeetingDetailsUpdate, request: Request):
+    require_mutation(request, "tutor")
+    result = update_meeting_details(context_from(request).settings.database_url, booking_id, submission.meeting_details)
+    if result is None: raise HTTPException(status_code=404)
+    return result
+
+
+@router.put("/api/tutor/bookings/{booking_id}/schedule", response_model=BookingResponse)
+async def reschedule_booking(booking_id: str, submission: TutorBookingMove, request: Request):
+    require_mutation(request, "tutor")
+    context = context_from(request)
+    result = move_booking(context.settings.database_url, booking_id, submission.start_at, context.now(), submission.override_id, submission.warning_acknowledged)
     if result is None: raise HTTPException(status_code=409)
     return result

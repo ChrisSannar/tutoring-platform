@@ -23,6 +23,10 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
   await availability.getByLabel("Start time").fill("09:00");
   await availability.getByLabel("End time").fill("10:00");
   await availability.getByRole("button", { name: "Add Availability" }).click();
+  const override = page.getByRole("form", { name: "Add Tutor Override" });
+  await override.getByLabel("Override start").fill("2026-09-20T10:00");
+  await override.getByLabel("Override warning").fill("Outside normal availability and horizon");
+  await override.getByRole("button", { name: "Add Tutor Override" }).click();
 
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("invitee@example.com");
@@ -79,10 +83,22 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
 
   await expect(page.getByRole("heading", { name: "Students" })).toBeVisible();
+  const bookingCalendar = page.getByRole("region", { name: "Weekly Booking Calendar" });
+  await bookingCalendar.getByRole("button", { name: /Avery Chen/ }).click();
+  const highlightedStudent = page.getByRole("article").filter({
+    has: page.getByRole("button", { name: "Avery Chen", exact: true }),
+  });
+  await expect(highlightedStudent).toHaveAttribute("aria-current", "true");
+  await expect(page.getByRole("dialog", { name: "Student Detail" })).toHaveCount(0);
+  await bookingCalendar.getByLabel("Tutor Override").selectOption({ label: "Outside normal availability and horizon" });
+  await expect(bookingCalendar.getByRole("button", { name: "Move Booking" })).toBeDisabled();
+  await bookingCalendar.getByLabel(/I acknowledge/).check();
+  await bookingCalendar.getByRole("button", { name: "Move Booking" }).click();
+  await expect(bookingCalendar.getByLabel("Move Booking")).toHaveValue("2026-09-20T10:00");
   await page.getByLabel("Search Students").fill("no match");
-  await expect(page.getByRole("button", { name: "Avery Chen" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Avery Chen", exact: true })).toHaveCount(0);
   await page.getByLabel("Search Students").fill("Avery");
-  await page.getByRole("button", { name: "Avery Chen" }).click();
+  await page.getByRole("button", { name: "Avery Chen", exact: true }).click();
   const studentDetail = page.getByRole("dialog", { name: "Student Detail" });
   await expect(studentDetail.getByLabel("Name")).toHaveValue("Avery Chen");
   await expect(studentDetail.getByLabel("Name")).toBeEditable({ editable: false });
@@ -90,6 +106,7 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
     editable: false,
   });
   await expect(studentDetail.getByText("First Session Promotion: Unavailable")).toBeVisible();
+  await expect(studentDetail.getByText("Upcoming Booking: Scheduled")).toBeVisible();
   await studentDetail.getByLabel("Credit adjustment").fill("2");
   await studentDetail
     .getByLabel("Adjustment reason")
