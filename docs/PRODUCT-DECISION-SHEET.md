@@ -1,6 +1,7 @@
 # Product Decision Sheet
 
-**Status:** Accepted in full on 2026-07-15.
+**Status:** Accepted for the frozen pilot on 2026-07-15. Decisions 5 through 7 were
+superseded by the direct-Booking flow settled in `PRODUCT-GRILLING.md` on 2026-07-17.
 
 1. **Invitee name** — May an invitee edit their prefilled display name while the bound
    email remains immutable? **Decision: yes.**
@@ -35,8 +36,9 @@
 12. **Automated security gates** — Require tests, type checks, linting, production
     builds, Playwright, dependency audits for Bun/Python, and secret scanning before a
     slice is complete. **Decision: yes.**
-13. **Invitation lifecycle** — Creation immediately issues the raw token once while
-    persisting only its hash and records the Invitation as `created`. The first
+13. **Invitation lifecycle** — Creation immediately issues the token, persists its hash
+    for lookup plus an encrypted Tutor-retrievable copy until claim, and records the
+    Invitation as `created`. The first
     successful personalized setup-page load transitions it to `opened`; later valid
     loads remain `opened`. `claimed`, `expired`, and `revoked` are terminal outcomes.
     **Decision: yes.**

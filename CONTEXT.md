@@ -1,7 +1,7 @@
 # Tutoring Platform
 
-This context describes the language of a single-tutor business and distinguishes the
-pilot's request flow from the future confirmed booking flow.
+This context describes the current language of a single-Tutor business centered on
+Inquiries, Invitations, direct Bookings, and shared lesson material.
 
 ## Language
 
@@ -15,9 +15,9 @@ A visitor evaluating the tutor who has no established tutoring relationship.
 _Avoid_: Lead, anonymous student
 
 **Inquiry**:
-A Prospect's public request to discuss tutoring, containing contact information and an
-optional message. It grants no application access and may lead the Tutor to create a
-separate Invitation.
+A Prospect's public request to discuss tutoring, containing contact information and a
+required contextual message. It grants no application access and may lead the Tutor to
+create a separate Invitation.
 _Avoid_: Signup request, account request, Invitation
 
 **New Inquiry**:
@@ -74,13 +74,14 @@ A short-lived, single-use link requested by an existing account holder to start 
 Student Session or Tutor session.
 _Avoid_: Invitation Link, password-reset link
 
+**Login Request**:
+A returning account holder's public request awaiting manual Tutor generation and email
+delivery of a Login Link.
+_Avoid_: Inquiry, Invitation, authenticated session
+
 **Private Tutor Note**:
 Tutor-authored context that is never visible through invitee or student boundaries.
 _Avoid_: Personal message, shared note
-
-**Shared Personal Message**:
-Tutor-authored invitation context intentionally visible to its invitee.
-_Avoid_: Private note
 
 **Shared Lesson Note**:
 Lesson context deliberately shared with its Student for exactly one past Booking. Its
@@ -92,11 +93,6 @@ Tutor-authored lesson context intended for later publication but visible only to
 Tutor until explicitly published.
 _Avoid_: Shared Lesson Note, Private Tutor Note
 
-**Session Request**:
-A student's pending proposal for a tutoring service and preferred time; it is neither
-confirmed nor paid.
-_Avoid_: Booking, session
-
 **Booking**:
 A confirmed tutoring session with an authoritative time and payment relationship.
 _Avoid_: Session request
@@ -106,15 +102,34 @@ The single confirmed Booking for a Student whose tutoring start is still in the 
 The first release permits at most one per Student.
 _Avoid_: Next session, Session Request
 
+**Past Booking**:
+A non-canceled Booking whose 60-minute tutoring end has passed. It may receive a Lesson
+Note Draft without a separate completion action.
+_Avoid_: Completed status, canceled Booking, Session Request
+
 **Meeting Details**:
-Tutor-controlled Student-visible information explaining where or how a Booking occurs,
-such as an address or remote-session instructions.
+Tutor-controlled Student-visible remote connection instructions for a Booking. The
+Tutor may replace them with an address for an exceptional in-person arrangement.
 _Avoid_: Private Tutor Note, Availability Window
+
+**Booking Focus**:
+An optional short Student-authored description of what they want to work on during a
+Booking.
+_Avoid_: Service, Lesson Note, Private Tutor Note
 
 **Session Credit**:
 A non-currency entitlement on a Student's account that may be redeemed for one
 60-minute Booking.
 _Avoid_: Refund, coupon, payment balance
+
+**Credit Ledger**:
+The immutable history of Session Credit grants, redemptions, restorations, freezes,
+and deductions, including the reason for Tutor adjustments.
+_Avoid_: Editable balance, payment history
+
+**Complimentary Booking**:
+A Tutor-created Booking that requires neither payment nor Session Credit redemption.
+_Avoid_: First Session Promotion, unpaid Booking
 
 **First Session Promotion**:
 A one-time entitlement automatically funding a Student's earliest eligible Booking,
@@ -165,16 +180,7 @@ _Avoid_: Booking, cancellation, deleted availability
 A revocable server-side authentication record referenced by an opaque secure cookie.
 _Avoid_: Booking, tutoring session
 
-**Calendar Projection**:
-An external calendar event that mirrors a booking without becoming its source of truth.
-_Avoid_: Booking
-
 **Calendar Export**:
 A downloadable `.ics` snapshot of a Booking that creates no ongoing synchronization
 relationship with the recipient's calendar.
-_Avoid_: Calendar Projection, Booking, calendar sync
-
-**Sync Drift**:
-A detected mismatch between a booking and its calendar projection that requires
-reconciliation.
-_Avoid_: Reschedule, cancellation
+_Avoid_: Booking, calendar sync
