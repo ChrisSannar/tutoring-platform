@@ -64,6 +64,19 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
 
   await expect(page.getByRole("heading", { name: "Students" })).toBeVisible();
+  await page.getByLabel("Search Students").fill("no match");
+  await expect(page.getByRole("button", { name: "Avery Chen" })).toHaveCount(0);
+  await page.getByLabel("Search Students").fill("Avery");
+  await page.getByRole("button", { name: "Avery Chen" }).click();
+  const studentDetail = page.getByRole("dialog", { name: "Student Detail" });
+  await expect(studentDetail.getByLabel("Name")).toHaveValue("Avery Chen");
+  await expect(studentDetail.getByLabel("Name")).toBeEditable({ editable: false });
+  await expect(studentDetail.getByLabel("Login email")).toBeEditable({
+    editable: false,
+  });
+  await expect(studentDetail.getByText("First Session Promotion: Available")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(studentDetail).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Pending Session Requests" }),
   ).toBeVisible();

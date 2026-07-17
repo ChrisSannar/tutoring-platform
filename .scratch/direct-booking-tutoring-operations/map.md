@@ -19,6 +19,9 @@
   reads and one atomic Student, Student Session, and First Session Promotion claim;
   linked Inquiries leave active work. Evidence:
   `issues/03-one-step-student-account-claim.md`.
+- Ticket 06 resolved: the Tutor has a searchable allowlisted Student directory and
+  explicit read-only Student Detail modal with bounded operational summaries. Evidence:
+  `issues/06-searchable-student-directory.md`.
 
 ## Fog
 

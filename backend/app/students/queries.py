@@ -14,3 +14,40 @@ def list_students(database_url: str) -> list[dict[str, str]]:
             return [dict(student) for student in students]
     finally:
         engine.dispose()
+
+
+def get_student_detail(
+    database_url: str, student_id: str
+) -> dict[str, object] | None:
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            student = connection.execute(
+                text(
+                    "SELECT accounts.id, accounts.email, accounts.display_name, "
+                    "COALESCE(SUM(CASE WHEN event_type = 'promotion_granted' THEN "
+                    "quantity ELSE 0 END), 0) AS promotion, COALESCE(SUM(CASE WHEN "
+                    "event_type LIKE 'credit_%' THEN quantity ELSE 0 END), 0) AS credits "
+                    "FROM accounts LEFT JOIN credit_ledger_entries ON accounts.id = "
+                    "credit_ledger_entries.student_account_id WHERE accounts.id = :id "
+                    "AND accounts.role = 'student' GROUP BY accounts.id"
+                ),
+                {"id": student_id},
+            ).mappings().first()
+            if student is None:
+                return None
+            return {
+                "id": student["id"],
+                "email": student["email"],
+                "display_name": student["display_name"],
+                "funding": {
+                    "first_session_promotion": (
+                        "available" if student["promotion"] > 0 else "unavailable"
+                    ),
+                    "session_credits": student["credits"],
+                },
+                "pending_refund_requests": [],
+                "upcoming_booking": None,
+            }
+    finally:
+        engine.dispose()
