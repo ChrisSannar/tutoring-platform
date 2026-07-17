@@ -4,9 +4,9 @@
 
 **Blocked by:** 05 — Tutor business settings; 07 — Availability and Bookable Slots; 09 — Promotion, credit, and complimentary Booking.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-- [ ] A short ADR records that verified Stripe webhook fulfillment, not browser redirect, creates a paid Booking and that a 30-minute Slot Hold protects checkout availability.
+- [x] A short ADR records that verified Stripe webhook fulfillment, not browser redirect, creates a paid Booking and that a 30-minute Slot Hold protects checkout availability.
 - [ ] A Student without promotion or credit can begin Stripe-hosted Checkout for a selected Bookable Slot.
 - [ ] The server reads the exact USD Session Price from Tutor settings, snapshots integer cents, and never accepts a browser-supplied amount.
 - [ ] Starting Checkout atomically creates a 30-minute Slot Hold that removes the slot from every Student's available choices.
@@ -16,4 +16,3 @@
 - [ ] Browser return improves status visibility but never independently proves payment or creates a Booking.
 - [ ] Payment configuration fails closed outside development, and logs exclude secrets, payment details, personal content, and token material.
 - [ ] Deterministic provider fakes and signed fixtures cover success, delay, mismatch, expiry, invalid signatures, retry, concurrency, and reconciliation without external network access.
-
