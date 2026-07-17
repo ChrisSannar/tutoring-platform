@@ -14,7 +14,7 @@ export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
     <main><section className="hero">
       <h1>Tutor workspace</h1>
       <BusinessSettings csrfToken={csrfToken} />
-      <StudentList />
+      <StudentList csrfToken={csrfToken} />
       <PendingSessionRequests csrfToken={csrfToken} />
       <InvitationManager csrfToken={csrfToken} />
       <InquiryQueue csrfToken={csrfToken} />

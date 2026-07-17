@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -94,10 +95,135 @@ async def test_student_cannot_read_the_tutor_student_directory_or_detail(
     try:
         listed = await client.get("/api/tutor/students")
         detail = await client.get("/api/tutor/students/student-b")
+        credit_change = await client.post(
+            "/api/tutor/students/student-b/credits",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": client.cookies["tutoring_csrf"],
+                "Idempotency-Key": "student-forbidden",
+            },
+            json={"quantity": 1, "reason": "Not allowed"},
+        )
     finally:
         await client.aclose()
         get_settings.cache_clear()
 
     assert listed.status_code == 401
     assert detail.status_code == 401
+    assert credit_change.status_code == 403
     assert "bailey@example.com" not in detail.text
+
+
+@pytest.mark.anyio
+async def test_tutor_adjustments_append_an_idempotent_credit_ledger(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client = await student_directory_client(monkeypatch, tmp_path)
+    base_headers = {
+        "Origin": "http://testserver",
+        "X-CSRF-Token": client.cookies["tutoring_csrf"],
+    }
+    try:
+        granted = await client.post(
+            "/api/tutor/students/student-a/credits",
+            headers={**base_headers, "Idempotency-Key": "grant-two"},
+            json={"quantity": 2, "reason": "Prepaid tutoring package"},
+        )
+        retried = await client.post(
+            "/api/tutor/students/student-a/credits",
+            headers={**base_headers, "Idempotency-Key": "grant-two"},
+            json={"quantity": 2, "reason": "Prepaid tutoring package"},
+        )
+        deducted = await client.post(
+            "/api/tutor/students/student-a/credits",
+            headers={**base_headers, "Idempotency-Key": "deduct-one"},
+            json={"quantity": -1, "reason": "Correct duplicate grant"},
+        )
+        detail = await client.get("/api/tutor/students/student-a")
+        ledger = await client.get("/api/tutor/students/student-a/credit-ledger")
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert granted.status_code == 200
+    assert granted.json()["session_credits"] == 2
+    assert retried.json() == granted.json()
+    assert deducted.json()["session_credits"] == 1
+    assert detail.json()["funding"]["session_credits"] == 1
+    assert [event["quantity"] for event in ledger.json()["events"]] == [1, 2, -1]
+    assert [event["event_type"] for event in ledger.json()["events"]] == [
+        "promotion_granted",
+        "credit_adjustment",
+        "credit_adjustment",
+    ]
+    assert [event["reason"] for event in ledger.json()["events"]] == [
+        None,
+        "Prepaid tutoring package",
+        "Correct duplicate grant",
+    ]
+
+
+@pytest.mark.anyio
+async def test_credit_adjustments_require_reason_and_never_create_negative_value(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client = await student_directory_client(monkeypatch, tmp_path)
+    headers = {
+        "Origin": "http://testserver",
+        "X-CSRF-Token": client.cookies["tutoring_csrf"],
+    }
+    try:
+        missing_reason = await client.post(
+            "/api/tutor/students/student-a/credits",
+            headers={**headers, "Idempotency-Key": "missing-reason"},
+            json={"quantity": 1, "reason": "   "},
+        )
+        too_large_deduction = await client.post(
+            "/api/tutor/students/student-a/credits",
+            headers={**headers, "Idempotency-Key": "negative"},
+            json={"quantity": -1, "reason": "No available ordinary credit"},
+        )
+        detail = await client.get("/api/tutor/students/student-a")
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert missing_reason.status_code == 422
+    assert too_large_deduction.status_code == 409
+    assert detail.json()["funding"]["session_credits"] == 0
+
+
+@pytest.mark.anyio
+async def test_concurrent_deductions_can_spend_one_credit_only_once(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client = await student_directory_client(monkeypatch, tmp_path)
+    headers = {
+        "Origin": "http://testserver",
+        "X-CSRF-Token": client.cookies["tutoring_csrf"],
+    }
+    try:
+        await client.post(
+            "/api/tutor/students/student-a/credits",
+            headers={**headers, "Idempotency-Key": "one-credit"},
+            json={"quantity": 1, "reason": "One available credit"},
+        )
+        deductions = await asyncio.gather(
+            client.post(
+                "/api/tutor/students/student-a/credits",
+                headers={**headers, "Idempotency-Key": "spend-a"},
+                json={"quantity": -1, "reason": "First spend"},
+            ),
+            client.post(
+                "/api/tutor/students/student-a/credits",
+                headers={**headers, "Idempotency-Key": "spend-b"},
+                json={"quantity": -1, "reason": "Competing spend"},
+            ),
+        )
+        detail = await client.get("/api/tutor/students/student-a")
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert sorted(response.status_code for response in deductions) == [200, 409]
+    assert detail.json()["funding"]["session_credits"] == 0

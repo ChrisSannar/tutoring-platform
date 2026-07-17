@@ -75,6 +75,12 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
     editable: false,
   });
   await expect(studentDetail.getByText("First Session Promotion: Available")).toBeVisible();
+  await studentDetail.getByLabel("Credit adjustment").fill("2");
+  await studentDetail
+    .getByLabel("Adjustment reason")
+    .fill("Two prepaid tutoring sessions");
+  await studentDetail.getByRole("button", { name: "Apply credit adjustment" }).click();
+  await expect(studentDetail.getByText("Session Credits: 2")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(studentDetail).toHaveCount(0);
   await expect(

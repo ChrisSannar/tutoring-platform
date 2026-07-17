@@ -22,11 +22,14 @@
 - Ticket 06 resolved: the Tutor has a searchable allowlisted Student directory and
   explicit read-only Student Detail modal with bounded operational summaries. Evidence:
   `issues/06-searchable-student-directory.md`.
+- Ticket 08 resolved: Session Credits are derived from append-only ledger events;
+  Tutor adjustments require reasons and idempotency, reject negative concurrent
+  deductions, and keep the First Session Promotion distinct. Evidence:
+  `issues/08-credit-ledger-and-tutor-adjustments.md`.
 
 ## Fog
 
 - Ticket 04 remains independently available for the role-aware returning-login flow.
 - Ticket 05 settings are implemented; its non-retroactive Booking/payment and Meeting
   Details snapshot proof remains open until the Booking seam exists.
-- Payment and Credit Ledger retention rules remain required before production payment
-  data is accepted.
+- Payment retention rules remain required before production payment data is accepted.

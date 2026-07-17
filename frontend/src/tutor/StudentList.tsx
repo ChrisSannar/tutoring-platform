@@ -7,10 +7,12 @@ type StudentDetail = Student & {
   upcoming_booking: { id: string } | null;
 };
 
-export function StudentList() {
+export function StudentList({ csrfToken }: { csrfToken: string }) {
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [detail, setDetail] = useState<StudentDetail | null>(null);
+  const [creditQuantity, setCreditQuantity] = useState("");
+  const [creditReason, setCreditReason] = useState("");
 
   useEffect(() => {
     function loadStudents() {
@@ -23,9 +25,42 @@ export function StudentList() {
     return () => window.removeEventListener("students-changed", loadStudents);
   }, []);
 
+  useEffect(() => {
+    if (!detail) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setDetail(null);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [detail]);
+
   async function openStudent(student: Student) {
     const response = await fetch(`/api/tutor/students/${student.id}`);
     if (response.ok) setDetail(await response.json());
+  }
+
+  async function adjustCredits() {
+    if (!detail) return;
+    const response = await fetch(`/api/tutor/students/${detail.id}/credits`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+        "Idempotency-Key": crypto.randomUUID(),
+      },
+      body: JSON.stringify({
+        quantity: Number(creditQuantity),
+        reason: creditReason,
+      }),
+    });
+    if (!response.ok) return;
+    const funding = await response.json();
+    setDetail({
+      ...detail,
+      funding: { ...detail.funding, session_credits: funding.session_credits },
+    });
+    setCreditQuantity("");
+    setCreditReason("");
   }
 
   const query = search.trim().toLowerCase();
@@ -55,9 +90,6 @@ export function StudentList() {
           open
           aria-labelledby="student-detail-heading"
           onClose={() => setDetail(null)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setDetail(null);
-          }}
         >
           <h2 id="student-detail-heading">Student Detail</h2>
           <label htmlFor="student-detail-name">Name</label>
@@ -68,6 +100,26 @@ export function StudentList() {
             First Session Promotion: {detail.funding.first_session_promotion === "available" ? "Available" : "Unavailable"}
           </p>
           <p>Session Credits: {detail.funding.session_credits}</p>
+          <label htmlFor="credit-adjustment">Credit adjustment</label>
+          <input
+            id="credit-adjustment"
+            type="number"
+            value={creditQuantity}
+            onChange={(event) => setCreditQuantity(event.target.value)}
+          />
+          <label htmlFor="credit-reason">Adjustment reason</label>
+          <input
+            id="credit-reason"
+            value={creditReason}
+            onChange={(event) => setCreditReason(event.target.value)}
+            maxLength={500}
+          />
+          <button
+            disabled={!creditQuantity || !creditReason.trim()}
+            onClick={adjustCredits}
+          >
+            Apply credit adjustment
+          </button>
           <p>
             Refund Requests: {detail.pending_refund_requests.length === 0 ? "None" : detail.pending_refund_requests.length}
           </p>

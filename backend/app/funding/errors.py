@@ -1,0 +1,2 @@
+class CreditAdjustmentConflict(Exception):
+    pass
