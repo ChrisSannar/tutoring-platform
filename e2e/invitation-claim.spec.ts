@@ -18,6 +18,12 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
   await page.goto(tutorOutbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
 
+  const availability = page.getByRole("form", { name: "Add Availability" });
+  await availability.getByLabel("Weekday").selectOption("4");
+  await availability.getByLabel("Start time").fill("09:00");
+  await availability.getByLabel("End time").fill("10:00");
+  await availability.getByRole("button", { name: "Add Availability" }).click();
+
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("invitee@example.com");
   await manualInvitation.getByRole("button", { name: "Create Invitation" }).click();
@@ -36,6 +42,15 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
     page.getByRole("heading", { name: "Student workspace" }),
   ).toBeVisible();
   await expect(page.getByText("Welcome, Avery Chen")).toBeVisible();
+
+  const bookableSlots = page.getByRole("region", { name: "Bookable Slots" });
+  await bookableSlots.getByRole("button").first().click();
+  await expect(page.getByRole("heading", { name: "Confirm session" })).toBeVisible();
+  await expect(page.getByText("Funding: First Session Promotion")).toBeVisible();
+  await page.getByLabel("Optional Booking Focus").fill("Quadratic equations");
+  await page.getByRole("button", { name: "Schedule session" }).click();
+  await expect(page.getByRole("heading", { name: "Upcoming Booking" })).toBeVisible();
+  await expect(page.getByText("Funding: first_session_promotion")).toBeVisible();
 
   await page.reload();
   await expect(
@@ -74,7 +89,7 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
   await expect(studentDetail.getByLabel("Login email")).toBeEditable({
     editable: false,
   });
-  await expect(studentDetail.getByText("First Session Promotion: Available")).toBeVisible();
+  await expect(studentDetail.getByText("First Session Promotion: Unavailable")).toBeVisible();
   await studentDetail.getByLabel("Credit adjustment").fill("2");
   await studentDetail
     .getByLabel("Adjustment reason")

@@ -25,7 +25,7 @@ def get_student_detail(
             student = connection.execute(
                 text(
                     "SELECT accounts.id, accounts.email, accounts.display_name, "
-                    "COALESCE(SUM(CASE WHEN event_type = 'promotion_granted' THEN "
+                    "COALESCE(SUM(CASE WHEN event_type LIKE 'promotion_%' THEN "
                     "quantity ELSE 0 END), 0) AS promotion, COALESCE(SUM(CASE WHEN "
                     "event_type LIKE 'credit_%' THEN quantity ELSE 0 END), 0) AS credits "
                     "FROM accounts LEFT JOIN credit_ledger_entries ON accounts.id = "
@@ -36,6 +36,13 @@ def get_student_detail(
             ).mappings().first()
             if student is None:
                 return None
+            booking = connection.execute(
+                text(
+                    "SELECT id FROM bookings WHERE student_account_id = :id "
+                    "AND status = 'upcoming' LIMIT 1"
+                ),
+                {"id": student_id},
+            ).mappings().first()
             return {
                 "id": student["id"],
                 "email": student["email"],
@@ -47,7 +54,7 @@ def get_student_detail(
                     "session_credits": student["credits"],
                 },
                 "pending_refund_requests": [],
-                "upcoming_booking": None,
+                "upcoming_booking": None if booking is None else dict(booking),
             }
     finally:
         engine.dispose()

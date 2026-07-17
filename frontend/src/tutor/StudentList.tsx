@@ -13,6 +13,8 @@ export function StudentList({ csrfToken }: { csrfToken: string }) {
   const [detail, setDetail] = useState<StudentDetail | null>(null);
   const [creditQuantity, setCreditQuantity] = useState("");
   const [creditReason, setCreditReason] = useState("");
+  const [complimentaryStart, setComplimentaryStart] = useState("");
+  const [complimentaryFocus, setComplimentaryFocus] = useState("");
 
   useEffect(() => {
     function loadStudents() {
@@ -61,6 +63,18 @@ export function StudentList({ csrfToken }: { csrfToken: string }) {
     });
     setCreditQuantity("");
     setCreditReason("");
+  }
+
+  async function createComplimentaryBooking() {
+    if (!detail) return;
+    const response = await fetch(`/api/tutor/students/${detail.id}/bookings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken, "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify({ start_at: new Date(complimentaryStart).toISOString(), focus: complimentaryFocus || null, complimentary: true }),
+    });
+    if (!response.ok) return;
+    const booking = await response.json();
+    setDetail({ ...detail, upcoming_booking: { id: booking.id } });
   }
 
   const query = search.trim().toLowerCase();
@@ -124,6 +138,11 @@ export function StudentList({ csrfToken }: { csrfToken: string }) {
             Refund Requests: {detail.pending_refund_requests.length === 0 ? "None" : detail.pending_refund_requests.length}
           </p>
           <p>Upcoming Booking: {detail.upcoming_booking ? "Scheduled" : "None"}</p>
+          <label htmlFor="complimentary-start">Complimentary Booking start</label>
+          <input id="complimentary-start" type="datetime-local" value={complimentaryStart} onChange={(event) => setComplimentaryStart(event.target.value)} />
+          <label htmlFor="complimentary-focus">Complimentary Booking Focus</label>
+          <input id="complimentary-focus" maxLength={500} value={complimentaryFocus} onChange={(event) => setComplimentaryFocus(event.target.value)} />
+          <button disabled={!complimentaryStart} onClick={createComplimentaryBooking}>Create Complimentary Booking</button>
           <button autoFocus onClick={() => setDetail(null)}>
             Close Student Detail
           </button>

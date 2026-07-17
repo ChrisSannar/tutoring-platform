@@ -9,7 +9,7 @@ def student_funding_summary(database_url: str, raw_session: str) -> dict[str, st
         with engine.connect() as connection:
             summary = connection.execute(
                 text(
-                    "SELECT COALESCE(SUM(CASE WHEN event_type = 'promotion_granted' "
+                    "SELECT COALESCE(SUM(CASE WHEN event_type LIKE 'promotion_%' "
                     "THEN quantity ELSE 0 END), 0) AS promotion, "
                     "COALESCE(SUM(CASE WHEN event_type LIKE 'credit_%' THEN quantity "
                     "ELSE 0 END), 0) AS credits FROM credit_ledger_entries JOIN "

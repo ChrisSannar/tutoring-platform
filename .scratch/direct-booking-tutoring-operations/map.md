@@ -29,9 +29,17 @@
   Tutor adjustments require reasons and idempotency, reject negative concurrent
   deductions, and keep the First Session Promotion distinct. Evidence:
   `issues/08-credit-ledger-and-tutor-adjustments.md`.
+- Ticket 05 resolved: Booking creation snapshots integer-cent price, USD currency, and
+  optional Meeting Details so later settings edits are non-retroactive. Evidence:
+  `issues/05-tutor-business-settings.md`.
+- Ticket 07 resolved: Tutor calendar rules derive privacy-safe, policy-bounded 60-minute
+  Bookable Slots and require warning acknowledgement for Overrides. Evidence:
+  `issues/07-availability-and-bookable-slots.md`.
+- Ticket 09 resolved: the atomic Booking transaction enforces promotion-first funding,
+  credit fallback, idempotency, one-Upcoming, conflict rechecks, snapshots, and explicit
+  Complimentary funding. Evidence:
+  `issues/09-promotion-credit-and-complimentary-booking.md`.
 
 ## Fog
 
-- Ticket 05 settings are implemented; its non-retroactive Booking/payment and Meeting
-  Details snapshot proof remains open until the Booking seam exists.
 - Payment retention rules remain required before production payment data is accepted.

@@ -18,6 +18,7 @@ from app.routes.tutor_credit_ledger import router as tutor_credit_router
 from app.routes.tutor_login_requests import router as tutor_login_request_router
 from app.routes.tutor_availability import router as tutor_availability_router
 from app.routes.student_availability import router as student_availability_router
+from app.routes.bookings import router as booking_router
 
 
 def create_app() -> FastAPI:
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     application.include_router(tutor_login_request_router)
     application.include_router(tutor_availability_router)
     application.include_router(student_availability_router)
+    application.include_router(booking_router)
     application.include_router(invitee_invitation_router)
     application.include_router(invitation_claim_router)
     application.include_router(session_request_router)

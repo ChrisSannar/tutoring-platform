@@ -4,19 +4,21 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** claimed
+**Status:** resolved
 
 - [x] The Tutor can view and update one global USD Session Price represented and persisted as integer cents.
 - [x] The Tutor can configure one valid IANA Tutor Timezone used by all first-release calendar displays and scheduling rules.
 - [x] The Tutor can configure default remote Meeting Details that may be empty or pending.
 - [x] Only the Tutor can read or mutate business settings, and every unsafe mutation requires the established same-origin and CSRF protections.
 - [x] Invalid currency, amount, timezone, or secret configuration fails safely and does not partially update settings.
-- [ ] Setting changes affect only future payment and Meeting Details snapshots; historical Booking values never change retroactively.
-- [ ] Black-box HTTP tests cover validation, authorization, CSRF/origin enforcement, integer precision, and snapshot boundaries.
+- [x] Setting changes affect only future payment and Meeting Details snapshots; historical Booking values never change retroactively.
+- [x] Black-box HTTP tests cover validation, authorization, CSRF/origin enforcement, integer precision, and snapshot boundaries.
 
-## Comments
+## Answer
 
-- Settings persistence, validation, authorization, browser editing, and integer-cent
-  precision are implemented and green. The two remaining boxes require the future
-  Booking/payment and Meeting Details snapshot seam; they remain open rather than
-  claiming indirect evidence.
+The singleton Tutor settings remain integer-cent USD values with IANA timezone and
+optional Meeting Details validation. Booking creation now copies price, currency, and
+Meeting Details into immutable Booking fields in the same transaction; changing the
+settings leaves the existing Booking unchanged and affects the next Booking only.
+Tutor authorization, origin, CSRF, validation, precision, and the real snapshot boundary
+are covered through black-box HTTP tests.
