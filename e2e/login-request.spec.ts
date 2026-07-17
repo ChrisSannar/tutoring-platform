@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("returning Student receives a Tutor-generated Login Link", async ({ browser, page }) => {
+test("returning Student receives a Tutor-generated Login Link", async ({ browser, page }, testInfo) => {
   await page.goto("/tutor/sign-in");
   await page.getByLabel("Email address").fill("tutor@example.com");
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
@@ -16,7 +16,7 @@ test("returning Student receives a Tutor-generated Login Link", async ({ browser
   await page.getByRole("button", { name: "Create Account" }).click();
   await expect(page.getByRole("heading", { name: "Student workspace" })).toBeVisible();
 
-  const publicContext = await browser.newContext({ baseURL: "http://127.0.0.1:7410" });
+  const publicContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
   const publicPage = await publicContext.newPage();
   await publicPage.goto("/");
   await publicPage.getByRole("link", { name: "Log In" }).click();

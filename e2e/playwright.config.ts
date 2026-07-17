@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
-const frontendOrigin = "http://127.0.0.1:7410";
-const backendOrigin = "http://127.0.0.1:7411";
+const frontendOrigin = `http://127.0.0.1:${process.env.E2E_FRONTEND_PORT ?? "7410"}`;
+const backendOrigin = `http://127.0.0.1:${process.env.E2E_BACKEND_PORT ?? "7411"}`;
 
 export default defineConfig({
   testDir: ".",
