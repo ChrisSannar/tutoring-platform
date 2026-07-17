@@ -43,6 +43,10 @@
   wayfinding, editable Meeting Details, conflict-safe normal moves, and acknowledged
   Override moves without altering funding. Evidence:
   `issues/10-tutor-booking-calendar-and-overrides.md`.
+- Ticket 11 resolved: Student reschedule/cancel policy uses an exact controlled 24-hour
+  boundary, idempotent funding restoration or explicit forfeiture, and an authoritative
+  escaped `.ics` snapshot. Evidence:
+  `issues/11-student-booking-changes-and-calendar-export.md`.
 
 ## Fog
 

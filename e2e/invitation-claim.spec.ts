@@ -21,7 +21,7 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
   const availability = page.getByRole("form", { name: "Add Availability" });
   await availability.getByLabel("Weekday").selectOption("4");
   await availability.getByLabel("Start time").fill("09:00");
-  await availability.getByLabel("End time").fill("10:00");
+  await availability.getByLabel("End time").fill("11:00");
   await availability.getByRole("button", { name: "Add Availability" }).click();
   const override = page.getByRole("form", { name: "Add Tutor Override" });
   await override.getByLabel("Override start").fill("2026-09-20T10:00");
@@ -55,6 +55,9 @@ test("Invitee confirms an Invitation Claim and continues as a Student", async ({
   await page.getByRole("button", { name: "Schedule session" }).click();
   await expect(page.getByRole("heading", { name: "Upcoming Booking" })).toBeVisible();
   await expect(page.getByText("Funding: first_session_promotion")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download Calendar (.ics)" })).toBeVisible();
+  await page.getByRole("button", { name: /Move to/ }).first().click();
+  await expect(page.getByRole("heading", { name: "Upcoming Booking" })).toBeVisible();
 
   await page.reload();
   await expect(

@@ -24,7 +24,7 @@ class BookingResponse(BaseModel):
     end_at: datetime
     duration_minutes: Literal[60]
     tutor_timezone: str
-    funding_kind: Literal["first_session_promotion", "session_credit", "complimentary"]
+    funding_kind: Literal["first_session_promotion", "session_credit", "complimentary", "paid"]
     focus: str | None
     meeting_details: str | None
     price_cents: int
@@ -40,6 +40,14 @@ class TutorBookingMove(BaseModel):
     start_at: datetime
     override_id: str | None = None
     warning_acknowledged: bool = False
+
+
+class StudentBookingMove(BaseModel):
+    start_at: datetime
+
+
+class StudentBookingCancellation(BaseModel):
+    forfeit_funding: bool
 
 
 class BookingStudent(BaseModel):

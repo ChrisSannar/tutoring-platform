@@ -109,7 +109,7 @@ async def test_promotion_then_credit_booking_snapshots_settings(monkeypatch, tmp
 
 @pytest.mark.anyio
 async def test_concurrent_booking_attempts_cannot_duplicate_slot_or_funding(monkeypatch, tmp_path: Path) -> None:
-    tutor, _, student, student_csrf, _ = await booking_context(monkeypatch, tmp_path)
+    tutor, _, student, student_csrf, database_url = await booking_context(monkeypatch, tmp_path)
     base = {"Origin": "http://testserver", "X-CSRF-Token": student_csrf}
     try:
         first, second = await asyncio.gather(
@@ -258,3 +258,154 @@ async def test_tutor_calendar_edits_and_moves_booking_without_changing_funding(m
     assert overridden.json()["funding_kind"] == "first_session_promotion"
     assert denied.status_code == 401
     assert [event for event in funding_events if event[0] == "promotion_consumed"] == [("promotion_consumed", -1)]
+
+
+@pytest.mark.anyio
+async def test_student_reschedules_exports_and_cancels_with_funding_restoration(monkeypatch, tmp_path: Path) -> None:
+    tutor, _, student, student_csrf, database_url = await booking_context(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": student_csrf}
+    try:
+        created = await student.post(
+            "/api/student/bookings",
+            headers={**headers, "Idempotency-Key": "change-booking"},
+            json={"start_at": "2026-07-20T14:00:00Z", "focus": "Commas, semicolons; and newlines\nnext", "confirmed": True},
+        )
+        booking_id = created.json()["id"]
+        moved = await student.put(
+            f"/api/student/bookings/{booking_id}/schedule",
+            headers={**headers, "Idempotency-Key": "student-move"},
+            json={"start_at": "2026-07-20T15:00:00Z"},
+        )
+        retried = await student.put(
+            f"/api/student/bookings/{booking_id}/schedule",
+            headers={**headers, "Idempotency-Key": "student-move"},
+            json={"start_at": "2026-07-20T15:00:00Z"},
+        )
+        moved_again = await student.put(
+            f"/api/student/bookings/{booking_id}/schedule",
+            headers={**headers, "Idempotency-Key": "student-move-again"},
+            json={"start_at": "2026-07-20T16:00:00Z"},
+        )
+        exported = await student.get(f"/api/student/bookings/{booking_id}/calendar.ics")
+        other_app = create_app()
+        other_app.state.context.now = lambda: datetime(2026, 7, 19, 8, tzinfo=timezone.utc)
+        other = httpx.AsyncClient(transport=httpx.ASGITransport(app=other_app), base_url="http://testserver")
+        other_token = issue_magic_link(database_url, "second@example.com", 900)
+        other_auth = await other.post("/api/auth/magic-links/confirm", json={"token": other_token})
+        other_export = await other.get(f"/api/student/bookings/{booking_id}/calendar.ics")
+        other_move = await other.put(
+            f"/api/student/bookings/{booking_id}/schedule",
+            headers={"Origin": "http://testserver", "X-CSRF-Token": other_auth.json()["csrf_token"], "Idempotency-Key": "other-move"},
+            json={"start_at": "2026-07-20T16:00:00Z"},
+        )
+        cancelled = await student.post(
+            f"/api/student/bookings/{booking_id}/cancel",
+            headers={**headers, "Idempotency-Key": "student-cancel"},
+            json={"forfeit_funding": False},
+        )
+        cancel_retry = await student.post(
+            f"/api/student/bookings/{booking_id}/cancel",
+            headers={**headers, "Idempotency-Key": "student-cancel"},
+            json={"forfeit_funding": False},
+        )
+        funding = await student.get("/api/student/funding")
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        await other.aclose()
+        get_settings.cache_clear()
+
+    assert moved.status_code == retried.status_code == 200
+    assert moved_again.status_code == 200
+    assert moved.json()["start_at"] == "2026-07-20T15:00:00Z"
+    assert moved.json()["funding_kind"] == "first_session_promotion"
+    assert exported.status_code == 200
+    assert exported.headers["content-disposition"] == 'attachment; filename="tutoring-session-2026-07-20.ics"'
+    assert f"UID:{booking_id}@tutoring-platform" in exported.text
+    assert "DTSTART;TZID=America/Chicago:20260720T110000" in exported.text
+    assert "Commas\\, semicolons\\; and newlines\\nnext" in exported.text
+    assert other_export.status_code == 404
+    assert other_move.status_code == 409
+    assert cancelled.status_code == cancel_retry.status_code == 200
+    assert cancelled.json()["status"] == "cancelled"
+    assert funding.json()["first_session_promotion"] == "available"
+
+
+@pytest.mark.anyio
+async def test_student_change_policy_is_exact_at_twenty_four_hours(monkeypatch, tmp_path: Path) -> None:
+    tutor, _, student, student_csrf, database_url = await booking_context(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": student_csrf}
+    try:
+        created = await student.post(
+            "/api/student/bookings",
+            headers={**headers, "Idempotency-Key": "boundary-booking"},
+            json={"start_at": "2026-07-20T14:00:00Z", "focus": None, "confirmed": True},
+        )
+        booking_id = created.json()["id"]
+        engine = create_engine(database_url)
+        with engine.begin() as connection:
+            connection.execute(text(
+                "UPDATE bookings SET start_at = '2026-07-20 08:00:00', end_at = '2026-07-20 09:00:00' WHERE id = :id"
+            ), {"id": booking_id})
+        exact = await student.post(
+            f"/api/student/bookings/{booking_id}/cancel",
+            headers={**headers, "Idempotency-Key": "exact-cancel"},
+            json={"forfeit_funding": False},
+        )
+        with engine.begin() as connection:
+            connection.execute(text(
+                "UPDATE bookings SET status = 'upcoming', start_at = '2026-07-20 07:59:59', end_at = '2026-07-20 08:59:59' WHERE id = :id"
+            ), {"id": booking_id})
+        inside_without_confirmation = await student.post(
+            f"/api/student/bookings/{booking_id}/cancel",
+            headers={**headers, "Idempotency-Key": "late-no-confirm"},
+            json={"forfeit_funding": False},
+        )
+        inside_confirmed = await student.post(
+            f"/api/student/bookings/{booking_id}/cancel",
+            headers={**headers, "Idempotency-Key": "late-confirmed"},
+            json={"forfeit_funding": True},
+        )
+        engine.dispose()
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        get_settings.cache_clear()
+
+    assert exact.status_code == 200
+    assert inside_without_confirmation.status_code == 409
+    assert inside_confirmed.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_early_paid_cancellation_grants_one_replacement_credit(monkeypatch, tmp_path: Path) -> None:
+    tutor, _, student, student_csrf, database_url = await booking_context(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": student_csrf}
+    try:
+        created = await student.post(
+            "/api/student/bookings",
+            headers={**headers, "Idempotency-Key": "future-paid"},
+            json={"start_at": "2026-07-20T14:00:00Z", "focus": None, "confirmed": True},
+        )
+        engine = create_engine(database_url)
+        with engine.begin() as connection:
+            connection.execute(text(
+                "UPDATE bookings SET funding_kind = 'paid' WHERE id = :id"
+            ), {"id": created.json()["id"]})
+        cancelled = await student.post(
+            f"/api/student/bookings/{created.json()['id']}/cancel",
+            headers={**headers, "Idempotency-Key": "paid-cancel"},
+            json={"forfeit_funding": False},
+        )
+        with engine.connect() as connection:
+            restored = connection.execute(text(
+                "SELECT quantity FROM credit_ledger_entries WHERE event_type = 'credit_paid_cancellation'"
+            )).scalar_one()
+        engine.dispose()
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        get_settings.cache_clear()
+
+    assert cancelled.status_code == 200
+    assert restored == 1
