@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — Public Inquiry intake and Tutor queue.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] A short ADR records the decision to store a hash for lookup and a separately encrypted, Tutor-retrievable Invitation Link until a terminal state.
 - [ ] From an active Inquiry, the Tutor can create one seven-day Invitation Link in a single action and the Inquiry becomes Invited.
@@ -15,4 +15,3 @@
 - [ ] Token ciphertext is erased after claim, revocation, expiration, or regeneration and is excluded from ordinary responses and logs.
 - [ ] Non-development configuration fails closed when the Invitation encryption key is missing or invalid.
 - [ ] Black-box HTTP tests cover Inquiry-linked and manual creation, encrypted redisplay, authorization, expiration, regeneration, revocation, and terminal erasure.
-
