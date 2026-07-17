@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LessonNoteManager } from "./LessonNoteManager";
 
 type Student = { id: string; email: string; display_name: string };
 type StudentDetail = Student & {
@@ -156,6 +157,7 @@ export function StudentList({ csrfToken }: { csrfToken: string }) {
           <label htmlFor="complimentary-focus">Complimentary Booking Focus</label>
           <input id="complimentary-focus" maxLength={500} value={complimentaryFocus} onChange={(event) => setComplimentaryFocus(event.target.value)} />
           <button disabled={!complimentaryStart} onClick={createComplimentaryBooking}>Create Complimentary Booking</button>
+          <LessonNoteManager studentId={detail.id} csrfToken={csrfToken} />
           <button autoFocus onClick={() => setDetail(null)}>
             Close Student Detail
           </button>

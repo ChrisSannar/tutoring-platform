@@ -47,6 +47,10 @@
   boundary, idempotent funding restoration or explicit forfeiture, and an authoritative
   escaped `.ics` snapshot. Evidence:
   `issues/11-student-booking-changes-and-calendar-export.md`.
+- Ticket 12 resolved: one Past-Booking Lesson Note moves deliberately from private draft
+  to a safely rendered shared accordion and stable Markdown download; confirmed deletion
+  clears content but retains evidence. Evidence:
+  `issues/12-lesson-note-draft-and-publication.md`.
 
 ## Fog
 

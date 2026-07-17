@@ -3,6 +3,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { csrfTokenFromCookie } from "../web/csrfToken";
 import type { Student } from "./types";
 import { BookableSlots } from "./BookableSlots";
+import { LessonNotes } from "./LessonNotes";
 
 type SessionRequest = {
   id: string;
@@ -66,6 +67,7 @@ export function StudentWorkspace({ initialStudent }: { initialStudent?: Student 
       <h1>Student workspace</h1>
       <p>Welcome, {student.display_name}</p>
       <BookableSlots />
+      <LessonNotes />
       {sessionRequest ? (
         <section>
           <h2>Pending Session Request</h2>
