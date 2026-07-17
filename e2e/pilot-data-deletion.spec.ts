@@ -3,7 +3,11 @@ import { expect, test } from "@playwright/test";
 test("Tutor deliberately deletes collected Student pilot data", async ({
   page,
   playwright,
-}) => {
+}, testInfo) => {
+  const applicationOrigin = testInfo.project.use.baseURL;
+  if (!applicationOrigin) {
+    throw new Error("Playwright baseURL must be configured");
+  }
   await page.goto("/tutor/sign-in");
   await page.getByLabel("Email address").fill("tutor@example.com");
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
@@ -53,14 +57,14 @@ test("Tutor deliberately deletes collected Student pilot data", async ({
     (cookie) => cookie.name === "tutoring_csrf",
   )?.value;
   const studentRequest = await playwright.request.newContext({
-    baseURL: "http://127.0.0.1:7310",
+    baseURL: applicationOrigin,
     storageState: { cookies: studentCookies, origins: [] },
   });
   const unauthorized = await studentRequest.delete(
     `/api/tutor/students/${studentId}/pilot-data`,
     {
       headers: {
-        Origin: "http://127.0.0.1:7310",
+        Origin: applicationOrigin,
         "X-CSRF-Token": studentCsrf ?? "",
       },
       data: { confirmation: "DELETE COLLECTED DATA" },

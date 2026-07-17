@@ -15,6 +15,27 @@ test("Prospect can view the Tutor landing page while the service is live", async
   ).toBeVisible();
 });
 
+test("Prospect submits an Inquiry without leaving the landing page", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Request tutoring" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Request tutoring" }),
+  ).toBeVisible();
+  await page.getByLabel("Email address").fill("Prospect@Example.COM");
+  await page
+    .getByLabel("How can tutoring help?")
+    .fill("I would like support with calculus.");
+  await page.getByRole("button", { name: "Send request" }).click();
+
+  await expect(
+    page.getByText("Thanks. Your tutoring request has been received."),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+});
+
 test("public pages apply the browser security baseline", async ({ request }) => {
   const response = await request.get("/");
   const headers = response.headers();

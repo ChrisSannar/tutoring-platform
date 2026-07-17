@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 
 from starlette.exceptions import HTTPException
 
@@ -27,6 +28,19 @@ def install_error_handling(application: FastAPI) -> None:
             content={
                 "code": code,
                 "message": message,
+                "request_id": request.state.request_id,
+            },
+        )
+
+    @application.exception_handler(RequestValidationError)
+    async def sanitized_validation_error(
+        request: Request, _exception: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "code": "request_failed",
+                "message": "Request failed",
                 "request_id": request.state.request_id,
             },
         )

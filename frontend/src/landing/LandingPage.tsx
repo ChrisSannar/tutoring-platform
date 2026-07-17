@@ -1,3 +1,5 @@
+import { InquiryModal } from "./InquiryModal";
+
 export function LandingPage() {
   return (
     <main>
@@ -8,7 +10,7 @@ export function LandingPage() {
           Focused sessions shaped around your goals, your questions, and the way
           you learn best.
         </p>
-        <a href="mailto:tutor@example.com">Ask about tutoring</a>
+        <InquiryModal />
       </section>
     </main>
   );

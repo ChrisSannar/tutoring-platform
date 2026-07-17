@@ -226,6 +226,20 @@ article p {
   margin: 0.35rem 0;
 }
 
+dialog {
+  width: min(38rem, calc(100% - 2rem));
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 0 1.5rem 4rem rgb(24 34 29 / 24%);
+}
+
+dialog::backdrop {
+  background: rgb(24 34 29 / 58%);
+}
+
 @media (max-width: 36rem) {
   main {
     padding: 1rem;

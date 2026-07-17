@@ -32,6 +32,42 @@ test("Tutor signs in through the development outbox and logs out", async ({
   ).toBeVisible();
 });
 
+test("Tutor reviews, archives, and confirms deletion of Inquiries", async ({
+  page,
+}) => {
+  await page.request.post("/api/inquiries", {
+    data: {
+      email: "queue-prospect@example.com",
+      message: "I need help with calculus.",
+    },
+  });
+  await page.request.post("/api/inquiries", {
+    data: {
+      email: "spam@example.com",
+      message: "Please remove this request.",
+    },
+  });
+  await page.goto("/tutor/sign-in");
+  await page.getByLabel("Email address").fill("tutor@example.com");
+  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
+  const outboxResponse = await page.request.get("/api/development/outbox");
+  const outbox = await outboxResponse.json();
+  await page.goto(outbox.messages.at(-1).magic_link);
+  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+
+  const prospect = page.getByRole("article", {
+    name: "queue-prospect@example.com",
+  });
+  await expect(prospect.getByText("I need help with calculus.")).toBeVisible();
+  await prospect.getByRole("button", { name: "Archive" }).click();
+  await expect(prospect).toHaveCount(0);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  const spam = page.getByRole("article", { name: "spam@example.com" });
+  await spam.getByRole("button", { name: "Delete permanently" }).click();
+  await expect(spam).toHaveCount(0);
+});
+
 test("Tutor creates and activates a personalized Invitation", async ({ page }) => {
   await page.goto("/tutor/sign-in");
   await page.getByLabel("Email address").fill("tutor@example.com");
