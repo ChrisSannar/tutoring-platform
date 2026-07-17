@@ -56,6 +56,10 @@
   payment evidence; browser returns remain status-only. Evidence:
   `issues/13-stripe-checkout-and-slot-holds.md` and
   `../../docs/adr/0005-fulfill-paid-bookings-from-stripe-webhooks.md`.
+- Ticket 14 resolved: one replacement credit can be frozen into one Refund Request;
+  decline restores it once, while idempotent full provider success records immutable
+  refund evidence and leaves no spendable replacement value. Evidence:
+  `issues/14-refund-request-review.md`.
 
 ## Fog
 

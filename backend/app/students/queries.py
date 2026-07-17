@@ -43,6 +43,13 @@ def get_student_detail(
                 ),
                 {"id": student_id},
             ).mappings().first()
+            refunds = connection.execute(
+                text(
+                    "SELECT id FROM refund_requests WHERE student_account_id = :id "
+                    "AND status = 'pending' ORDER BY created_at DESC LIMIT 20"
+                ),
+                {"id": student_id},
+            ).mappings()
             return {
                 "id": student["id"],
                 "email": student["email"],
@@ -53,7 +60,7 @@ def get_student_detail(
                     ),
                     "session_credits": student["credits"],
                 },
-                "pending_refund_requests": [],
+                "pending_refund_requests": [dict(refund) for refund in refunds],
                 "upcoming_booking": None if booking is None else dict(booking),
             }
     finally:

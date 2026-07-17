@@ -21,6 +21,7 @@ from app.routes.student_availability import router as student_availability_route
 from app.routes.bookings import router as booking_router
 from app.routes.lesson_notes import router as lesson_note_router
 from app.routes.checkout import router as checkout_router
+from app.routes.refunds import router as refund_router
 
 
 def create_app() -> FastAPI:
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     application.include_router(booking_router)
     application.include_router(lesson_note_router)
     application.include_router(checkout_router)
+    application.include_router(refund_router)
     application.include_router(invitee_invitation_router)
     application.include_router(invitation_claim_router)
     application.include_router(session_request_router)
