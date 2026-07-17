@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Callable
 
 from app.config import Settings, get_settings
 
@@ -7,6 +9,7 @@ from app.config import Settings, get_settings
 class ApplicationContext:
     settings: Settings
     development_outbox: list[dict[str, str]] = field(default_factory=list)
+    now: Callable[[], datetime] = field(default=lambda: datetime.now(timezone.utc))
 
     @classmethod
     def build(cls) -> "ApplicationContext":
