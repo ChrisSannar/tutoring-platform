@@ -45,7 +45,7 @@ class TutorInvitationRecordResponse(BaseModel):
     shared_personal_message: str
     private_tutor_note: str
     status: Literal["created", "opened", "claimed", "revoked", "expired"]
-    created_at: datetime
+    created_at: datetime | None
     first_opened_at: datetime | None
     claimed_at: datetime | None
     expired_at: datetime | None

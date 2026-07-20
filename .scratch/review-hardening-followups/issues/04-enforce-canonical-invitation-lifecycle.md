@@ -50,3 +50,12 @@ Tutor inspection reports the winner's matching evidence.
   all 13 tests using the documented `/tmp` environment shims.
 - Environment: the live concurrency test required localhost socket access; its initial
   sandboxed run failed with `PermissionError`, then passed with socket access enabled.
+- Review remediation red: a migration test covering every runtime-recognized historical
+  state plus an arbitrary schema-valid state failed because the unknown state reached
+  the canonical-status constraint; the migration also fabricated lifecycle times.
+- Review remediation green: complete usable rows remain usable, due rows expire, and
+  incomplete or unknown rows revoke fail-closed. Existing terminal states keep nullable
+  unknown historical times, terminal tokens are erased, and no creation/open/claim/
+  expiration/revocation timestamp is invented. `USABLE_INVITATION_STATUSES` now matches
+  canonical domain language. The 34 targeted tests, all 100 backend tests, and all 15
+  Playwright tests passed.

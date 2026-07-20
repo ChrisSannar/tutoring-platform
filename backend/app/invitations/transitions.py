@@ -5,7 +5,7 @@ from sqlalchemy.engine import Connection
 
 from app.invitations.expiration import expire_due_by_id, expire_due_by_token
 
-ACTIVE_INVITATION_STATUSES = ("created", "opened")
+USABLE_INVITATION_STATUSES = ("created", "opened")
 
 
 def status_after_expiration(
@@ -62,7 +62,7 @@ def revoke_by_id(connection: Connection, invitation_id: str, now: datetime) -> s
     status = status_after_expiration(connection, invitation_id, now)
     if status == "revoked" or status is None:
         return status
-    if status not in ACTIVE_INVITATION_STATUSES:
+    if status not in USABLE_INVITATION_STATUSES:
         return "conflict"
     return connection.execute(
         text(
@@ -81,7 +81,7 @@ def regenerate_by_id(
     status = status_after_expiration(connection, invitation_id, created_at)
     if status is None:
         return None
-    if status not in ACTIVE_INVITATION_STATUSES:
+    if status not in USABLE_INVITATION_STATUSES:
         return "conflict"
     return connection.execute(
         text(

@@ -18,11 +18,8 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("expired_at", sa.DateTime(timezone=True)))
         batch_op.add_column(sa.Column("revoked_at", sa.DateTime(timezone=True)))
 
-    op.execute(
-        "UPDATE invitations SET created_at = "
-        "CASE WHEN expires_at IS NULL THEN CURRENT_TIMESTAMP "
-        "ELSE datetime(expires_at, '-7 days') END"
-    )
+    # Historical lifecycle times were never stored. NULL preserves that fact; runtime
+    # writes still record complete evidence for every new Invitation.
     op.execute(
         "UPDATE invitations SET status = 'expired', expired_at = CURRENT_TIMESTAMP, "
         "token_hash = NULL, token_ciphertext = NULL "
@@ -41,46 +38,36 @@ def upgrade() -> None:
     )
     op.execute(
         "UPDATE invitations SET status = 'revoked', revoked_at = CURRENT_TIMESTAMP, "
-        "token_hash = NULL, token_ciphertext = NULL WHERE status = 'draft'"
+        "token_hash = NULL, token_ciphertext = NULL "
+        "WHERE status NOT IN ('created', 'opened', 'claimed', 'expired', 'revoked') "
+        "OR (status = 'claimed' AND claimed_account_id IS NULL)"
     )
     op.execute(
-        "UPDATE invitations SET first_opened_at = CURRENT_TIMESTAMP "
-        "WHERE status = 'opened' AND first_opened_at IS NULL"
-    )
-    op.execute(
-        "UPDATE invitations SET claimed_at = CURRENT_TIMESTAMP, token_hash = NULL, "
-        "token_ciphertext = NULL WHERE status = 'claimed'"
-    )
-    op.execute(
-        "UPDATE invitations SET expired_at = CURRENT_TIMESTAMP, token_hash = NULL, "
-        "token_ciphertext = NULL WHERE status = 'expired' AND expired_at IS NULL"
-    )
-    op.execute(
-        "UPDATE invitations SET revoked_at = CURRENT_TIMESTAMP, token_hash = NULL, "
-        "token_ciphertext = NULL WHERE status = 'revoked' AND revoked_at IS NULL"
+        "UPDATE invitations SET token_hash = NULL, token_ciphertext = NULL "
+        "WHERE status IN ('claimed', 'expired', 'revoked')"
     )
 
     with op.batch_alter_table("invitations") as batch_op:
-        batch_op.alter_column("created_at", existing_type=sa.DateTime(), nullable=False)
         batch_op.create_check_constraint(
             "ck_invitations_canonical_status",
             "status IN ('created', 'opened', 'claimed', 'expired', 'revoked')",
         )
         batch_op.create_check_constraint(
             "ck_invitations_opened_evidence",
-            "status != 'opened' OR first_opened_at IS NOT NULL",
+            "status != 'opened' OR first_opened_at IS NOT NULL OR created_at IS NULL",
         )
         batch_op.create_check_constraint(
             "ck_invitations_claimed_evidence",
-            "status != 'claimed' OR (claimed_at IS NOT NULL AND claimed_account_id IS NOT NULL)",
+            "status != 'claimed' OR (claimed_account_id IS NOT NULL AND "
+            "(claimed_at IS NOT NULL OR created_at IS NULL))",
         )
         batch_op.create_check_constraint(
             "ck_invitations_expired_evidence",
-            "status != 'expired' OR expired_at IS NOT NULL",
+            "status != 'expired' OR expired_at IS NOT NULL OR created_at IS NULL",
         )
         batch_op.create_check_constraint(
             "ck_invitations_revoked_evidence",
-            "status != 'revoked' OR revoked_at IS NOT NULL",
+            "status != 'revoked' OR revoked_at IS NOT NULL OR created_at IS NULL",
         )
         batch_op.create_check_constraint(
             "ck_invitations_terminal_tokens_erased",

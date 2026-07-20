@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine, text
 
 from app.invitations.transitions import (
-    ACTIVE_INVITATION_STATUSES,
+    USABLE_INVITATION_STATUSES,
     revoke_by_id,
     status_after_expiration,
 )
@@ -20,7 +20,7 @@ def correct_invitation_email(
             )
             if status is None:
                 return None
-            if status not in ACTIVE_INVITATION_STATUSES:
+            if status not in USABLE_INVITATION_STATUSES:
                 return {"id": invitation_id, "email": "", "status": "conflict"}
             corrected = connection.execute(
                 text(
