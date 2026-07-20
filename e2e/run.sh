@@ -5,6 +5,7 @@ state_directory="$(mktemp -d /tmp/tutoring-platform-e2e.XXXXXX)"
 port_offset=$((RANDOM % 10000))
 export E2E_FRONTEND_PORT=$((30000 + port_offset))
 export E2E_BACKEND_PORT=$((40000 + port_offset))
+export E2E_DEVELOPMENT_FRONTEND_PORT=$((20000 + port_offset))
 
 cleanup() {
   rm -rf "${state_directory}"

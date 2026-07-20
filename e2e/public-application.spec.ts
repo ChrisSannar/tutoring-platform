@@ -47,8 +47,13 @@ test("Prospect submits an Inquiry without leaving the landing page", async ({
   await expect(page).toHaveURL(/\/$/);
 });
 
-test("public pages apply the browser security baseline", async ({ request }) => {
-  const response = await request.get("/");
+test("production preview applies the browser security baseline", async ({ page }) => {
+  const response = await page.goto("/");
+
+  expect(response).not.toBeNull();
+  if (response === null) {
+    return;
+  }
   const headers = response.headers();
 
   expect(headers["content-security-policy"]).toBe(

@@ -10,6 +10,7 @@
     "migrate:dev": "mkdir -p backend/var && UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend alembic -c backend/alembic.ini upgrade head",
     "serve:backend": "UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend uvicorn app.main:app --host 127.0.0.1 --port 7311 --no-access-log",
     "serve:e2e:backend": "UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend uvicorn app.main:app --host 127.0.0.1 --port ${E2E_BACKEND_PORT:-7411} --no-access-log",
+    "serve:e2e:development-frontend": "bun run --cwd frontend dev --host 127.0.0.1 --port ${E2E_DEVELOPMENT_FRONTEND_PORT:-7412}",
     "serve:e2e:frontend": "bun run --cwd frontend build && bun run --cwd frontend preview --host 127.0.0.1 --port ${E2E_FRONTEND_PORT:-7410}",
     "serve:frontend": "bun run --cwd frontend build && bun run --cwd frontend preview --host 127.0.0.1 --port 7310",
     "install:e2e": "PLAYWRIGHT_BROWSERS_PATH=/tmp/tutoring-platform-playwright playwright install chromium",
