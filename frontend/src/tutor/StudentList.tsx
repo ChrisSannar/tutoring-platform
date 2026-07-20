@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { LessonNoteManager } from "./LessonNoteManager";
+import { tutorWallTimeToInstant } from "../tutorTime";
 
 type Student = { id: string; email: string; display_name: string };
 type StudentDetail = Student & {
@@ -8,7 +9,7 @@ type StudentDetail = Student & {
   upcoming_booking: { id: string } | null;
 };
 
-export function StudentList({ csrfToken }: { csrfToken: string }) {
+export function StudentList({ csrfToken, tutorTimezone }: { csrfToken: string; tutorTimezone: string }) {
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [detail, setDetail] = useState<StudentDetail | null>(null);
@@ -84,7 +85,7 @@ export function StudentList({ csrfToken }: { csrfToken: string }) {
     const response = await fetch(`/api/tutor/students/${detail.id}/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken, "Idempotency-Key": crypto.randomUUID() },
-      body: JSON.stringify({ start_at: new Date(complimentaryStart).toISOString(), focus: complimentaryFocus || null, complimentary: true }),
+      body: JSON.stringify({ start_at: tutorWallTimeToInstant(complimentaryStart, tutorTimezone), focus: complimentaryFocus || null, complimentary: true }),
     });
     if (!response.ok) return;
     const booking = await response.json();

@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 
-export function BusinessSettings({ csrfToken }: { csrfToken: string }) {
+export function BusinessSettings({ csrfToken, onTimezoneChange }: { csrfToken: string; onTimezoneChange: (timezone: string) => void }) {
   const [price, setPrice] = useState("");
   const [timezone, setTimezone] = useState("");
   const [meetingDetails, setMeetingDetails] = useState("");
@@ -12,9 +12,10 @@ export function BusinessSettings({ csrfToken }: { csrfToken: string }) {
       const settings = await response.json();
       setPrice((settings.session_price_cents / 100).toFixed(2));
       setTimezone(settings.tutor_timezone);
+      onTimezoneChange(settings.tutor_timezone);
       setMeetingDetails(settings.default_meeting_details ?? "");
     });
-  }, []);
+  }, [onTimezoneChange]);
 
   async function saveSettings(event: FormEvent) {
     event.preventDefault();
@@ -31,7 +32,10 @@ export function BusinessSettings({ csrfToken }: { csrfToken: string }) {
         default_meeting_details: meetingDetails || null,
       }),
     });
-    if (response.ok) setSaved(true);
+    if (response.ok) {
+      setSaved(true);
+      onTimezoneChange(timezone);
+    }
   }
 
   return (
