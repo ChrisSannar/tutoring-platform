@@ -32,12 +32,14 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
   }, { newNow: now, csrf: tutorCsrf });
   expect(await setClock("2026-07-19T08:00:00Z")).toBe(200);
 
+  await tutorPage.getByRole("tab", { name: "Availability & Business" }).click();
   const availability = tutorPage.getByRole("form", { name: "Add Availability" });
   await availability.getByLabel("Weekday").selectOption("2");
   await availability.getByLabel("Start time").fill("09:00");
   await availability.getByLabel("End time").fill("11:00");
   await availability.getByRole("button", { name: "Add Availability" }).click();
 
+  await tutorPage.getByRole("tab", { name: "Requests", exact: true }).click();
   const inquiry = tutorPage.getByRole("article", { name: "critical@example.com" });
   await inquiry.getByRole("button", { name: "Create Invitation" }).click();
   const invitationLink = await inquiry.getByLabel("Invitation link").inputValue();

@@ -84,6 +84,7 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   expect((await (await moved).json()).start_at).toBe("2026-11-09T15:00:00Z");
   await expect(calendar.getByLabel("Move Booking")).toHaveValue("2026-11-09T10:00");
 
+  await page.getByRole("tab", { name: "Availability & Business" }).click();
   const blockedForm = page.getByRole("form", { name: "Add Blocked Time" });
   await blockedForm.getByLabel("Blocked start").fill("2027-03-15T10:00");
   await blockedForm.getByLabel("Blocked end").fill("2027-03-15T11:00");

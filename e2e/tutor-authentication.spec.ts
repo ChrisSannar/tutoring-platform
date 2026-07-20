@@ -21,6 +21,34 @@ test("Tutor signs in through the development outbox and logs out", async ({
     page.getByRole("heading", { name: "Tutor workspace" }),
   ).toBeVisible();
 
+  const tabs = page.getByRole("tablist", { name: "Tutor workspace sections" });
+  await expect(tabs.getByRole("tab")).toHaveCount(3);
+  const studentsTab = tabs.getByRole("tab", { name: "Students & Calendar" });
+  const availabilityTab = tabs.getByRole("tab", { name: "Availability & Business" });
+  const requestsTab = tabs.getByRole("tab", { name: "Requests", exact: true });
+  await expect(studentsTab).toHaveAttribute("aria-selected", "true");
+  const studentsPanel = page.getByRole("tabpanel", { name: "Students & Calendar" });
+  await expect(studentsPanel.getByRole("heading", { name: "Students" })).toBeVisible();
+  await expect(studentsPanel.getByRole("heading", { name: "Weekly Booking Calendar" })).toBeVisible();
+
+  await availabilityTab.click();
+  const availabilityPanel = page.getByRole("tabpanel", { name: "Availability & Business" });
+  await expect(availabilityPanel.getByRole("heading", { name: "Availability Calendar" })).toBeVisible();
+  await expect(availabilityPanel.getByRole("heading", { name: "Business settings" })).toBeVisible();
+
+  await requestsTab.click();
+  const requestsPanel = page.getByRole("tabpanel", { name: "Requests", exact: true });
+  await expect(requestsPanel.getByRole("heading", { name: "Active Inquiries" })).toBeVisible();
+  await expect(requestsPanel.getByRole("heading", { name: "Login Requests" })).toBeVisible();
+  await expect(requestsPanel.getByRole("heading", { name: "Refund Requests" })).toBeVisible();
+  await expect(page.getByText("© 2026 Tutoring Platform")).toBeVisible();
+  const themeToggle = page.getByRole("button", { name: "Dark mode" });
+  await expect(themeToggle).toHaveAttribute("aria-pressed", "false");
+  await themeToggle.click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute("aria-pressed", "true");
+
+  await availabilityTab.click();
   await page.getByLabel("Session price (USD)").fill("82.50");
   await page.getByLabel("Tutor timezone").fill("America/New_York");
   await page
@@ -33,6 +61,7 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(
     page.getByRole("heading", { name: "Tutor workspace" }),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "Availability & Business" }).click();
   await expect(page.getByLabel("Session price (USD)")).toHaveValue("82.50");
 
   const availability = page.getByRole("form", { name: "Add Availability" });
@@ -94,6 +123,7 @@ test("Tutor reviews, archives, and confirms deletion of Inquiries", async ({
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await page.getByRole("tab", { name: "Requests", exact: true }).click();
 
   const prospect = page.getByRole("article", {
     name: "queue-prospect@example.com",
@@ -124,6 +154,7 @@ test("Tutor creates a retrievable manual Invitation in one action", async ({ pag
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await page.getByRole("tab", { name: "Requests", exact: true }).click();
 
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("Invitee@Example.COM");
@@ -145,6 +176,7 @@ test("Invitee opens a personalized setup page without the Private Tutor Note", a
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await page.getByRole("tab", { name: "Requests", exact: true }).click();
 
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("invitee@example.com");
@@ -167,6 +199,7 @@ test("Tutor corrects an active Invitation email", async ({ page }) => {
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await page.getByRole("tab", { name: "Requests", exact: true }).click();
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("typo@example.com");
   await manualInvitation.getByRole("button", { name: "Create Invitation" }).click();
@@ -188,6 +221,7 @@ test("Tutor regenerates and revokes an active Invitation", async ({ page }) => {
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await page.getByRole("tab", { name: "Requests", exact: true }).click();
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("invitee@example.com");
   await manualInvitation.getByRole("button", { name: "Create Invitation" }).click();
