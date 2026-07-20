@@ -4,7 +4,6 @@ from app.application_context import ApplicationContext
 from app.http.errors import install_error_handling
 from app.routes.auth import router as auth_router
 from app.routes.direct_invitation_claims import router as direct_claim_router
-from app.routes.invitation_claims import router as invitation_claim_router
 from app.routes.inquiries import router as inquiry_router
 from app.routes.invitee_invitations import router as invitee_invitation_router
 from app.routes.pilot_data import router as pilot_data_router
@@ -52,7 +51,6 @@ def create_app() -> FastAPI:
     application.include_router(refund_router)
     application.include_router(testing_router)
     application.include_router(invitee_invitation_router)
-    application.include_router(invitation_claim_router)
     application.include_router(pilot_data_router)
     return application
 

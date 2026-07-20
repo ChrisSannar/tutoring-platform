@@ -56,34 +56,17 @@ async def collected_pilot_data(
     invitation = await tutor.post(
         "/api/tutor/invitations",
         headers=tutor_headers,
-        json={
-            "email": "student@example.com",
-            "display_name": "Avery",
-            "shared_personal_message": "Welcome to tutoring.",
-            "private_tutor_note": "Needs evening availability.",
-        },
+        json={"email": "student@example.com"},
     )
-    activated = await tutor.post(
-        f"/api/tutor/invitations/{invitation.json()['id']}/activate",
-        headers=tutor_headers,
-    )
-    invitation_token = activated.json()["invitation_url"].removeprefix("/invite/")
+    invitation_token = invitation.json()["invitation_url"].removeprefix("/invite/")
 
     student = httpx.AsyncClient(
         transport=httpx.ASGITransport(app=create_app()),
         base_url="http://testserver",
     )
-    await student.post(
-        f"/api/invitations/{invitation_token}/magic-links",
-        json={"email": "student@example.com"},
-    )
-    student_outbox = await student.get("/api/development/outbox")
-    claim_token = parse_qs(
-        urlparse(student_outbox.json()["messages"][-1]["magic_link"]).query
-    )["token"][0]
     claimed = await student.post(
-        "/api/invitation-claims/confirm",
-        json={"token": claim_token, "display_name": "Avery Chen"},
+        f"/api/invitations/{invitation_token}/claim",
+        json={"display_name": "Avery Chen"},
     )
     student_csrf = claimed.json()["csrf_token"]
     students = await tutor.get("/api/tutor/students")

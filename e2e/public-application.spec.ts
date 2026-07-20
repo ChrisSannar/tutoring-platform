@@ -15,6 +15,17 @@ test("Prospect can view the Tutor landing page while the service is live", async
   ).toBeVisible();
 });
 
+test("retired Invitation Claim browser route is unavailable", async ({ page }) => {
+  await page.goto("/student/claim/confirm?token=retired-token");
+
+  await expect(
+    page.getByRole("heading", { name: "Personal tutoring, thoughtfully planned." }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Invitation Claim/ }),
+  ).toHaveCount(0);
+});
+
 test("Prospect submits an Inquiry without leaving the landing page", async ({
   page,
 }) => {

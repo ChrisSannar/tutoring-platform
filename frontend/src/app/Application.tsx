@@ -1,4 +1,3 @@
-import { InvitationClaimConfirmation } from "../invitations/InvitationClaimConfirmation";
 import { LoginAuthentication } from "../auth/LoginAuthentication";
 import { InviteeSetup } from "../invitations/InviteeSetup";
 import { LandingPage } from "../landing/LandingPage";
@@ -9,9 +8,6 @@ import { TutorAuthentication } from "../tutor/TutorAuthentication";
 export function Application() {
   const { pathname } = window.location;
 
-  if (pathname === "/student/claim/confirm") {
-    return <InvitationClaimConfirmation />;
-  }
   if (pathname.startsWith("/sign-in")) {
     return <LoginAuthentication />;
   }

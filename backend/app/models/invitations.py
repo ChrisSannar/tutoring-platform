@@ -2,17 +2,12 @@ from datetime import datetime
 import re
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
-
-
-class InvitationDraftRequest(BaseModel):
-    email: str
-    display_name: str
-    shared_personal_message: str
-    private_tutor_note: str
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class ManualInvitationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     email: str
 
     @field_validator("email")
@@ -24,14 +19,10 @@ class ManualInvitationRequest(BaseModel):
         return normalized
 
 
-class TutorInvitationResponse(InvitationDraftRequest):
+class CreatedInvitationResponse(BaseModel):
     id: str
-    status: Literal["draft"]
-
-
-class ActivatedInvitationResponse(BaseModel):
-    id: str
-    status: Literal["active"]
+    email: str
+    status: Literal["created"]
     invitation_url: str
     expires_at: datetime
 
@@ -43,17 +34,16 @@ class InvitationLinkChangeResponse(BaseModel):
     expires_at: datetime
 
 
-class CreatedInvitationResponse(ActivatedInvitationResponse):
-    email: str
-    status: Literal["created"]
-
-
 class InvitationLinkResponse(BaseModel):
     invitation_url: str
 
 
-class TutorInvitationRecordResponse(InvitationDraftRequest):
+class TutorInvitationRecordResponse(BaseModel):
     id: str
+    email: str
+    display_name: str
+    shared_personal_message: str
+    private_tutor_note: str
     status: Literal[
         "draft", "active", "created", "opened", "claimed", "revoked", "expired"
     ]

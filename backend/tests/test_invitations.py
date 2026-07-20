@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 import subprocess
@@ -95,6 +94,32 @@ async def test_tutor_creates_and_retrieves_one_active_manual_invitation_link(
     assert retrieved.json() == {"invitation_url": created.json()["invitation_url"]}
     assert anonymous_retrieval.status_code == 401
     assert created.json()["invitation_url"] not in anonymous_retrieval.text
+
+
+@pytest.mark.anyio
+async def test_tutor_cannot_create_a_superseded_draft_invitation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    try:
+        response = await client.post(
+            "/api/tutor/invitations",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": csrf_token,
+            },
+            json={
+                "email": "invitee@example.com",
+                "display_name": "Avery",
+                "shared_personal_message": "Welcome.",
+                "private_tutor_note": "Tutor-only.",
+            },
+        )
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert response.status_code == 422
 
 
 @pytest.mark.anyio
@@ -245,37 +270,6 @@ async def test_expiration_erases_the_retrievable_invitation_link_lazily(
 
 
 @pytest.mark.anyio
-async def test_tutor_creates_a_draft_invitation_for_a_known_invitee(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
-    try:
-        response = await client.post(
-            "/api/tutor/invitations",
-            headers={"Origin": "http://testserver", "X-CSRF-Token": csrf_token},
-            json={
-                "email": "  Invitee@Example.COM ",
-                "display_name": "Avery",
-                "shared_personal_message": "I made this invitation for you.",
-                "private_tutor_note": "Needs evening availability.",
-            },
-        )
-    finally:
-        await client.aclose()
-    get_settings.cache_clear()
-
-    assert response.status_code == 201
-    assert response.json() == {
-        "id": response.json()["id"],
-        "email": "invitee@example.com",
-        "display_name": "Avery",
-        "shared_personal_message": "I made this invitation for you.",
-        "private_tutor_note": "Needs evening availability.",
-        "status": "draft",
-    }
-
-
-@pytest.mark.anyio
 async def test_anonymous_caller_cannot_create_an_invitation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -295,12 +289,7 @@ async def test_anonymous_caller_cannot_create_an_invitation(
         response = await client.post(
             "/api/tutor/invitations",
             headers={"Origin": "http://testserver", "X-CSRF-Token": "untrusted"},
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
+            json={"email": "invitee@example.com"},
         )
     get_settings.cache_clear()
 
@@ -317,12 +306,7 @@ async def test_invitation_creation_rejects_a_missing_origin(
         response = await client.post(
             "/api/tutor/invitations",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
+            json={"email": "invitee@example.com"},
         )
     finally:
         await client.aclose()
@@ -340,12 +324,7 @@ async def test_invitation_creation_rejects_a_missing_csrf_token(
         response = await client.post(
             "/api/tutor/invitations",
             headers={"Origin": "http://testserver"},
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
+            json={"email": "invitee@example.com"},
         )
     finally:
         await client.aclose()
@@ -366,12 +345,7 @@ async def test_invitation_creation_rejects_a_foreign_csrf_token(
                 "Origin": "http://testserver",
                 "X-CSRF-Token": "csrf-from-another-session",
             },
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
+            json={"email": "invitee@example.com"},
         )
     finally:
         await client.aclose()
@@ -419,58 +393,13 @@ async def test_student_caller_cannot_create_an_invitation(
                 "Origin": "http://testserver",
                 "X-CSRF-Token": authenticated.json()["csrf_token"],
             },
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
+            json={"email": "invitee@example.com"},
         )
     finally:
         await client.aclose()
     get_settings.cache_clear()
 
     assert response.status_code == 403
-
-
-@pytest.mark.anyio
-async def test_tutor_activates_an_invitation_with_a_seven_day_opaque_link(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
-    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
-    try:
-        created = await client.post(
-            "/api/tutor/invitations",
-            headers=headers,
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
-        )
-        activated = await client.post(
-            f"/api/tutor/invitations/{created.json()['id']}/activate",
-            headers=headers,
-        )
-    finally:
-        await client.aclose()
-    get_settings.cache_clear()
-
-    assert activated.status_code == 200
-    assert activated.json().keys() == {
-        "id",
-        "status",
-        "invitation_url",
-        "expires_at",
-    }
-    assert activated.json()["id"] == created.json()["id"]
-    assert activated.json()["status"] == "active"
-    assert activated.json()["invitation_url"].startswith("/invite/")
-    expires_at = datetime.fromisoformat(activated.json()["expires_at"])
-    assert datetime.now(timezone.utc) + timedelta(days=6, hours=23) < expires_at
-    assert expires_at < datetime.now(timezone.utc) + timedelta(days=7, minutes=1)
 
 
 @pytest.mark.anyio
@@ -483,16 +412,7 @@ async def test_tutor_inspection_never_returns_the_raw_invitation_token(
         created = await client.post(
             "/api/tutor/invitations",
             headers=headers,
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Keep this Tutor-only.",
-            },
-        )
-        activated = await client.post(
-            f"/api/tutor/invitations/{created.json()['id']}/activate",
-            headers=headers,
+            json={"email": "invitee@example.com"},
         )
         inspected = await client.get(
             f"/api/tutor/invitations/{created.json()['id']}"
@@ -511,41 +431,8 @@ async def test_tutor_inspection_never_returns_the_raw_invitation_token(
         "status",
         "expires_at",
     }
-    assert inspected.json()["status"] == "active"
-    assert activated.json()["invitation_url"] not in inspected.text
-
-
-@pytest.mark.anyio
-async def test_activation_reveals_an_invitation_link_only_once(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
-    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
-    try:
-        created = await client.post(
-            "/api/tutor/invitations",
-            headers=headers,
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
-        )
-        invitation_id = created.json()["id"]
-        first_activation = await client.post(
-            f"/api/tutor/invitations/{invitation_id}/activate", headers=headers
-        )
-        second_activation = await client.post(
-            f"/api/tutor/invitations/{invitation_id}/activate", headers=headers
-        )
-    finally:
-        await client.aclose()
-    get_settings.cache_clear()
-
-    assert first_activation.status_code == 200
-    assert second_activation.status_code == 404
-    assert "invitation_url" not in second_activation.text
+    assert inspected.json()["status"] == "created"
+    assert created.json()["invitation_url"] not in inspected.text
 
 
 @pytest.mark.anyio
@@ -560,12 +447,7 @@ async def test_anonymous_caller_cannot_inspect_a_tutor_invitation(
                 "Origin": "http://testserver",
                 "X-CSRF-Token": csrf_token,
             },
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Never disclose this.",
-            },
+            json={"email": "invitee@example.com"},
         )
         client.cookies.clear()
         inspected = await client.get(
@@ -576,7 +458,7 @@ async def test_anonymous_caller_cannot_inspect_a_tutor_invitation(
     get_settings.cache_clear()
 
     assert inspected.status_code == 401
-    assert "Never disclose this." not in inspected.text
+    assert created.json()["invitation_url"] not in inspected.text
 
 
 @pytest.mark.anyio
@@ -591,12 +473,7 @@ async def test_student_caller_cannot_inspect_a_tutor_invitation(
                 "Origin": "http://testserver",
                 "X-CSRF-Token": csrf_token,
             },
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Tutor-only context.",
-            },
+            json={"email": "invitee@example.com"},
         )
         manual = await client.post(
             "/api/tutor/invitations",
@@ -637,7 +514,7 @@ async def test_student_caller_cannot_inspect_a_tutor_invitation(
 
     assert inspected.status_code == 401
     assert retrieved.status_code == 401
-    assert "Tutor-only context." not in inspected.text
+    assert created.json()["invitation_url"] not in inspected.text
     assert manual.json()["invitation_url"] not in retrieved.text
 
 
@@ -651,26 +528,16 @@ async def test_invitee_opens_an_active_invitation_with_only_allowlisted_data(
         created = await client.post(
             "/api/tutor/invitations",
             headers=headers,
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "I made this Invitation for you.",
-                "private_tutor_note": "Never expose evening availability.",
-            },
-        )
-        activated = await client.post(
-            f"/api/tutor/invitations/{created.json()['id']}/activate",
-            headers=headers,
+            json={"email": "invitee@example.com"},
         )
         client.cookies.clear()
-        opened = await client.get(activated.json()["invitation_url"])
+        opened = await client.get(created.json()["invitation_url"])
     finally:
         await client.aclose()
     get_settings.cache_clear()
 
     assert opened.status_code == 200
     assert opened.json() == {"email": "invitee@example.com"}
-    assert "Never expose evening availability." not in opened.text
 
 
 @pytest.mark.anyio
@@ -683,23 +550,14 @@ async def test_tutor_corrects_the_bound_email_before_claim(
         created = await client.post(
             "/api/tutor/invitations",
             headers=headers,
-            json={
-                "email": "typo@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
-        )
-        activated = await client.post(
-            f"/api/tutor/invitations/{created.json()['id']}/activate",
-            headers=headers,
+            json={"email": "typo@example.com"},
         )
         corrected = await client.patch(
             f"/api/tutor/invitations/{created.json()['id']}",
             headers=headers,
             json={"email": "  Corrected@Example.COM "},
         )
-        opened = await client.get(activated.json()["invitation_url"])
+        opened = await client.get(created.json()["invitation_url"])
     finally:
         await client.aclose()
     get_settings.cache_clear()
@@ -708,7 +566,7 @@ async def test_tutor_corrects_the_bound_email_before_claim(
     assert corrected.json() == {
         "id": created.json()["id"],
         "email": "corrected@example.com",
-        "status": "active",
+        "status": "created",
     }
     assert opened.json()["email"] == "corrected@example.com"
 
@@ -723,22 +581,13 @@ async def test_tutor_revokes_an_active_invitation(
         created = await client.post(
             "/api/tutor/invitations",
             headers=headers,
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
-        )
-        activated = await client.post(
-            f"/api/tutor/invitations/{created.json()['id']}/activate",
-            headers=headers,
+            json={"email": "invitee@example.com"},
         )
         revoked = await client.post(
             f"/api/tutor/invitations/{created.json()['id']}/revoke",
             headers=headers,
         )
-        reopened = await client.get(activated.json()["invitation_url"])
+        reopened = await client.get(created.json()["invitation_url"])
     finally:
         await client.aclose()
     get_settings.cache_clear()
@@ -758,22 +607,13 @@ async def test_regeneration_replaces_and_permanently_invalidates_the_prior_token
         created = await client.post(
             "/api/tutor/invitations",
             headers=headers,
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
-        )
-        activated = await client.post(
-            f"/api/tutor/invitations/{created.json()['id']}/activate",
-            headers=headers,
+            json={"email": "invitee@example.com"},
         )
         regenerated = await client.post(
             f"/api/tutor/invitations/{created.json()['id']}/regenerate",
             headers=headers,
         )
-        prior_link = await client.get(activated.json()["invitation_url"])
+        prior_link = await client.get(created.json()["invitation_url"])
         replacement_link = await client.get(regenerated.json()["invitation_url"])
     finally:
         await client.aclose()
@@ -786,7 +626,7 @@ async def test_regeneration_replaces_and_permanently_invalidates_the_prior_token
         "invitation_url",
         "expires_at",
     }
-    assert regenerated.json()["invitation_url"] != activated.json()["invitation_url"]
+    assert regenerated.json()["invitation_url"] != created.json()["invitation_url"]
     assert prior_link.status_code == 404
     assert replacement_link.status_code == 200
 
@@ -802,18 +642,9 @@ async def test_opening_an_expired_link_records_the_terminal_expired_state(
         created = await client.post(
             "/api/tutor/invitations",
             headers=headers,
-            json={
-                "email": "invitee@example.com",
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Private.",
-            },
+            json={"email": "invitee@example.com"},
         )
-        activated = await client.post(
-            f"/api/tutor/invitations/{created.json()['id']}/activate",
-            headers=headers,
-        )
-        token = activated.json()["invitation_url"].rsplit("/", 1)[-1]
+        token = created.json()["invitation_url"].rsplit("/", 1)[-1]
         opened = await client.get(f"/api/invitations/{token}")
         inspected = await client.get(
             f"/api/tutor/invitations/{created.json()['id']}"
@@ -834,36 +665,27 @@ async def test_unusable_invitation_tokens_have_indistinguishable_safe_responses(
     client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
     headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
 
-    async def activate(email: str) -> tuple[str, str]:
+    async def create(email: str) -> tuple[str, str]:
         created = await client.post(
             "/api/tutor/invitations",
             headers=headers,
-            json={
-                "email": email,
-                "display_name": "Avery",
-                "shared_personal_message": "Welcome.",
-                "private_tutor_note": "Never disclose this.",
-            },
+            json={"email": email},
         )
-        activated = await client.post(
-            f"/api/tutor/invitations/{created.json()['id']}/activate",
-            headers=headers,
-        )
-        return created.json()["id"], activated.json()["invitation_url"]
+        return created.json()["id"], created.json()["invitation_url"]
 
     try:
-        revoked_id, revoked_url = await activate("revoked@example.com")
+        revoked_id, revoked_url = await create("revoked@example.com")
         await client.post(
             f"/api/tutor/invitations/{revoked_id}/revoke", headers=headers
         )
 
-        superseded_id, superseded_url = await activate("superseded@example.com")
+        superseded_id, superseded_url = await create("superseded@example.com")
         await client.post(
             f"/api/tutor/invitations/{superseded_id}/regenerate", headers=headers
         )
 
-        expired_id, expired_url = await activate("expired@example.com")
-        claimed_id, claimed_url = await activate("claimed@example.com")
+        expired_id, expired_url = await create("expired@example.com")
+        claimed_id, claimed_url = await create("claimed@example.com")
         engine = create_engine(f"sqlite:///{tmp_path / 'invitations.sqlite3'}")
         try:
             with engine.begin() as connection:

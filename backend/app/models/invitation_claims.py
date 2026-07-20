@@ -3,21 +3,6 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-class InvitationClaimLinkRequest(BaseModel):
-    email: str
-
-
-class InvitationClaimConfirmationResponse(BaseModel):
-    status: Literal["confirmation_required"]
-    email: str
-    display_name: str
-
-
-class InvitationClaimConfirmationRequest(BaseModel):
-    token: str
-    display_name: str
-
-
 class DirectInvitationClaimRequest(BaseModel):
     display_name: str = Field(min_length=1, max_length=200)
 
