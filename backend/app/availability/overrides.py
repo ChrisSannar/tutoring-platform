@@ -29,6 +29,19 @@ def list_overrides(database_url: str) -> list[dict]:
         engine.dispose()
 
 
+def update_override(database_url: str, override_id: str, start: datetime, warning: str) -> dict | None:
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            row = connection.execute(text(
+                "UPDATE tutor_overrides SET start_at = :start, end_at = :end, warning = :warning "
+                "WHERE id = :id RETURNING id, start_at, end_at, warning"
+            ), {"id": override_id, "start": start, "end": start + timedelta(hours=1), "warning": warning}).mappings().first()
+            return None if row is None else {**dict(row), "requires_booking_warning": True}
+    finally:
+        engine.dispose()
+
+
 def delete_override(database_url: str, override_id: str) -> bool:
     engine = create_engine(database_url)
     try:

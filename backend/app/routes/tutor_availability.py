@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 from starlette.exceptions import HTTPException
 
-from app.availability import create_blocked_time, create_override, create_window, delete_blocked_time, delete_override, delete_window, list_blocked_times, list_overrides, list_windows, update_blocked_time, update_window
+from app.availability import create_blocked_time, create_override, create_window, delete_blocked_time, delete_override, delete_window, list_blocked_times, list_overrides, list_windows, update_blocked_time, update_override, update_window
 from app.http.context import context_from
 from app.http.security import require_mutation, require_session
 from app.models.availability import AvailabilityWindowInput, AvailabilityWindowResponse, BlockedTimeInput, BlockedTimeResponse, TutorOverrideInput, TutorOverrideResponse
@@ -71,6 +71,14 @@ async def add_override(submission: TutorOverrideInput, request: Request):
 async def get_overrides(request: Request):
     require_session(request, "tutor")
     return list_overrides(context_from(request).settings.database_url)
+
+
+@router.put("/overrides/{override_id}", response_model=TutorOverrideResponse)
+async def replace_override(override_id: str, submission: TutorOverrideInput, request: Request):
+    require_mutation(request, "tutor")
+    result = update_override(context_from(request).settings.database_url, override_id, submission.start_at, submission.warning)
+    if result is None: raise HTTPException(status_code=404)
+    return result
 
 
 @router.delete("/overrides/{override_id}", status_code=204)

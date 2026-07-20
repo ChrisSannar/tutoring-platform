@@ -38,3 +38,13 @@ the Booking schedule endpoint.
   `2027-03-15T10:00` became `2027-03-15T14:00:00Z` after spring-forward.
 - Green: the authoritative command passed 100 backend tests and 15 Playwright tests:
   `BUN_INSTALL=/tmp/bun BUN_TMPDIR=/tmp UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache PLAYWRIGHT_BROWSERS_PATH=/tmp/tutoring-platform-playwright bun run test`.
+- Remediation red: `PUT /api/tutor/overrides/{id}` returned 405, and Playwright could
+  not find standalone Tutor Override edit controls or an accessible spring-gap error.
+- Remediation green: Tutor Overrides now support authenticated, CSRF-protected replacement;
+  the UI edits their Tutor wall time and warning through the shared Tutor Timezone conversion.
+- Browser proof: the same `2026-11-02T15:00:00Z` Booking renders as
+  `11/2/2026, 10:00:00 AM` in both `Asia/Tokyo` and `America/Los_Angeles` browser contexts.
+- DST edge: New York `2027-03-14T02:30` is rejected as nonexistent with an accessible
+  alert and creates no Tutor Override.
+- Remediation green: the authoritative command passed 100 backend tests and 15
+  Playwright tests.

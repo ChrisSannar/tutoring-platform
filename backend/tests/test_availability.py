@@ -171,6 +171,10 @@ async def test_tutor_override_records_an_explicit_booking_warning(monkeypatch, t
             json={"start_at": "2026-09-20T15:00:00Z", "warning": "Outside normal availability and horizon"},
         )
         listed = await tutor.get("/api/tutor/overrides")
+        updated = await tutor.put(
+            f"/api/tutor/overrides/{created.json()['id']}", headers=headers,
+            json={"start_at": "2026-09-21T16:00:00Z", "warning": "Updated exception warning"},
+        )
         denied = await student.get("/api/tutor/overrides")
         removed = await tutor.delete(
             f"/api/tutor/overrides/{created.json()['id']}", headers=headers
@@ -183,5 +187,10 @@ async def test_tutor_override_records_an_explicit_booking_warning(monkeypatch, t
     assert created.status_code == 201
     assert created.json()["requires_booking_warning"] is True
     assert listed.json()[0]["warning"] == "Outside normal availability and horizon"
+    assert updated.status_code == 200
+    assert updated.json()["start_at"] == "2026-09-21T16:00:00Z"
+    assert updated.json()["end_at"] == "2026-09-21T17:00:00Z"
+    assert updated.json()["warning"] == "Updated exception warning"
+    assert updated.json()["requires_booking_warning"] is True
     assert denied.status_code == 401
     assert removed.status_code == 204

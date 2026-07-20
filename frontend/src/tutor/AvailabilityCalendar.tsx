@@ -36,6 +36,18 @@ function BlockedRow({ blocked, csrfToken, tutorTimezone, onDelete }: { blocked: 
   return <article aria-label="Blocked Time"><input aria-label="Blocked start" type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} /><input aria-label="Blocked end" type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} /><input aria-label="Private blocked reason" value={reason} onChange={(event) => setReason(event.target.value)} /><button onClick={save}>Save Blocked Time</button><button onClick={remove}>Delete Blocked Time</button></article>;
 }
 
+function OverrideRow({ override, csrfToken, tutorTimezone, onDelete }: { override: Override; csrfToken: string; tutorTimezone: string; onDelete: () => void }) {
+  const [start, setStart] = useState(tutorDateTimeInputValue(override.start_at, tutorTimezone));
+  const [warning, setWarning] = useState(override.warning);
+  async function save() {
+    await fetch(`/api/tutor/overrides/${override.id}`, { method: "PUT", headers: mutationHeaders(csrfToken), body: JSON.stringify({ start_at: tutorWallTimeToInstant(start, tutorTimezone), warning }) });
+  }
+  async function remove() {
+    if ((await fetch(`/api/tutor/overrides/${override.id}`, { method: "DELETE", headers: mutationHeaders(csrfToken) })).ok) onDelete();
+  }
+  return <article aria-label="Tutor Override"><input aria-label="Override start" type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} required /><input aria-label="Override warning" value={warning} onChange={(event) => setWarning(event.target.value)} required /><button onClick={save}>Save Tutor Override</button><button onClick={remove}>Delete Tutor Override</button></article>;
+}
+
 export function AvailabilityCalendar({ csrfToken, tutorTimezone }: { csrfToken: string; tutorTimezone: string }) {
   const [windows, setWindows] = useState<WindowRule[]>([]);
   const [blocked, setBlocked] = useState<BlockedTime[]>([]);
@@ -48,6 +60,7 @@ export function AvailabilityCalendar({ csrfToken, tutorTimezone }: { csrfToken: 
   const [reason, setReason] = useState("");
   const [overrideStart, setOverrideStart] = useState("");
   const [warning, setWarning] = useState("");
+  const [overrideError, setOverrideError] = useState("");
 
   useEffect(() => {
     void Promise.all([fetch("/api/tutor/availability-windows"), fetch("/api/tutor/blocked-times"), fetch("/api/tutor/overrides")]).then(async ([windowResponse, blockedResponse, overrideResponse]) => {
@@ -75,12 +88,20 @@ export function AvailabilityCalendar({ csrfToken, tutorTimezone }: { csrfToken: 
   }
   async function addOverride(event: FormEvent) {
     event.preventDefault();
-    const response = await fetch("/api/tutor/overrides", { method: "POST", headers: mutationHeaders(csrfToken), body: JSON.stringify({ start_at: tutorWallTimeToInstant(overrideStart, tutorTimezone), warning }) });
+    let startAt: string;
+    try {
+      startAt = tutorWallTimeToInstant(overrideStart, tutorTimezone);
+    } catch (error) {
+      setOverrideError(error instanceof Error ? error.message : "Tutor wall time is invalid");
+      return;
+    }
+    setOverrideError("");
+    const response = await fetch("/api/tutor/overrides", { method: "POST", headers: mutationHeaders(csrfToken), body: JSON.stringify({ start_at: startAt, warning }) });
     if (response.ok) {
       const created = await response.json();
       setOverrides((current) => [...current, created]);
     }
   }
 
-  return <section aria-labelledby="availability-heading"><h2 id="availability-heading">Availability Calendar</h2><form aria-label="Add Availability" onSubmit={addWindow}><select aria-label="Weekday" value={weekday} onChange={(event) => setWeekday(Number(event.target.value))}>{weekdays.map((day, index) => <option value={index} key={day}>{day}</option>)}</select><input aria-label="Start time" type="time" value={start} onChange={(event) => setStart(event.target.value)} required /><input aria-label="End time" type="time" value={end} onChange={(event) => setEnd(event.target.value)} required /><button type="submit">Add Availability</button></form>{windows.map((rule) => <WindowRow key={rule.id} rule={rule} csrfToken={csrfToken} onDelete={() => setWindows((current) => current.filter((item) => item.id !== rule.id))} />)}<form aria-label="Add Blocked Time" onSubmit={addBlocked}><input aria-label="Blocked start" type="datetime-local" value={blockedStart} onChange={(event) => setBlockedStart(event.target.value)} required /><input aria-label="Blocked end" type="datetime-local" value={blockedEnd} onChange={(event) => setBlockedEnd(event.target.value)} required /><input aria-label="Private blocked reason" value={reason} onChange={(event) => setReason(event.target.value)} /><button type="submit">Add Blocked Time</button></form>{blocked.map((item) => <BlockedRow key={item.id} blocked={item} csrfToken={csrfToken} tutorTimezone={tutorTimezone} onDelete={() => setBlocked((current) => current.filter((entry) => entry.id !== item.id))} />)}<form aria-label="Add Tutor Override" onSubmit={addOverride}><input aria-label="Override start" type="datetime-local" value={overrideStart} onChange={(event) => setOverrideStart(event.target.value)} required /><input aria-label="Override warning" value={warning} onChange={(event) => setWarning(event.target.value)} required /><button type="submit">Add Tutor Override</button></form>{overrides.map((item) => <article key={item.id}><p>{item.warning}</p><button onClick={async () => { if ((await fetch(`/api/tutor/overrides/${item.id}`, { method: "DELETE", headers: mutationHeaders(csrfToken) })).ok) setOverrides((current) => current.filter((entry) => entry.id !== item.id)); }}>Delete Tutor Override</button></article>)}</section>;
+  return <section aria-labelledby="availability-heading"><h2 id="availability-heading">Availability Calendar</h2><form aria-label="Add Availability" onSubmit={addWindow}><select aria-label="Weekday" value={weekday} onChange={(event) => setWeekday(Number(event.target.value))}>{weekdays.map((day, index) => <option value={index} key={day}>{day}</option>)}</select><input aria-label="Start time" type="time" value={start} onChange={(event) => setStart(event.target.value)} required /><input aria-label="End time" type="time" value={end} onChange={(event) => setEnd(event.target.value)} required /><button type="submit">Add Availability</button></form>{windows.map((rule) => <WindowRow key={rule.id} rule={rule} csrfToken={csrfToken} onDelete={() => setWindows((current) => current.filter((item) => item.id !== rule.id))} />)}<form aria-label="Add Blocked Time" onSubmit={addBlocked}><input aria-label="Blocked start" type="datetime-local" value={blockedStart} onChange={(event) => setBlockedStart(event.target.value)} required /><input aria-label="Blocked end" type="datetime-local" value={blockedEnd} onChange={(event) => setBlockedEnd(event.target.value)} required /><input aria-label="Private blocked reason" value={reason} onChange={(event) => setReason(event.target.value)} /><button type="submit">Add Blocked Time</button></form>{blocked.map((item) => <BlockedRow key={item.id} blocked={item} csrfToken={csrfToken} tutorTimezone={tutorTimezone} onDelete={() => setBlocked((current) => current.filter((entry) => entry.id !== item.id))} />)}<form aria-label="Add Tutor Override" onSubmit={addOverride}><input aria-label="Override start" type="datetime-local" value={overrideStart} onChange={(event) => setOverrideStart(event.target.value)} required /><input aria-label="Override warning" value={warning} onChange={(event) => setWarning(event.target.value)} required /><button type="submit">Add Tutor Override</button>{overrideError ? <p role="alert">{overrideError}</p> : null}</form>{overrides.map((item) => <OverrideRow key={item.id} override={item} csrfToken={csrfToken} tutorTimezone={tutorTimezone} onDelete={() => setOverrides((current) => current.filter((entry) => entry.id !== item.id))} />)}</section>;
 }

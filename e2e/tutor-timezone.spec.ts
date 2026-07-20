@@ -68,6 +68,14 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   const calendar = page.getByRole("region", { name: "Weekly Booking Calendar", exact: true });
   const booking = calendar.getByRole("button", { name: /Timezone Student/ });
   await expect(booking).toContainText("11/2/2026, 10:00:00 AM");
+  const losAngelesContext = await browser.newContext({
+    baseURL: origin,
+    storageState: await context.storageState(),
+    timezoneId: "America/Los_Angeles",
+  });
+  const losAngelesPage = await losAngelesContext.newPage();
+  await losAngelesPage.goto("/tutor");
+  await expect(losAngelesPage.getByRole("region", { name: "Weekly Booking Calendar", exact: true }).getByRole("button", { name: /Timezone Student/ })).toContainText("11/2/2026, 10:00:00 AM");
 
   await booking.click();
   await calendar.getByLabel("Move Booking").fill("2026-11-09T10:00");
@@ -93,6 +101,12 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   expect((await (await blockedSaved).json()).start_at).toBe("2027-03-16T14:00:00Z");
 
   const overrideForm = page.getByRole("form", { name: "Add Tutor Override" });
+  await overrideForm.getByLabel("Override start").fill("2027-03-14T02:30");
+  await overrideForm.getByLabel("Override warning").fill("Nonexistent spring-gap exception");
+  await overrideForm.getByRole("button", { name: "Add Tutor Override" }).click();
+  await expect(overrideForm.getByRole("alert")).toHaveText("Tutor wall time does not exist in the configured Tutor Timezone");
+  await expect(page.getByRole("article", { name: "Tutor Override" })).toHaveCount(0);
+
   await overrideForm.getByLabel("Override start").fill("2027-03-15T12:00");
   await overrideForm.getByLabel("Override warning").fill("DST boundary exception");
   const overrideCreated = page.waitForResponse((response) => response.url().endsWith("/api/tutor/overrides") && response.request().method() === "POST");
@@ -100,14 +114,23 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   const createdOverride = await (await overrideCreated).json();
   expect(createdOverride.start_at).toBe("2027-03-15T16:00:00Z");
 
+  const overrideRow = page.getByRole("article", { name: "Tutor Override" });
+  await expect(overrideRow.getByLabel("Override start")).toHaveValue("2027-03-15T12:00");
+  await overrideRow.getByLabel("Override start").fill("2027-03-16T12:00");
+  await overrideRow.getByLabel("Override warning").fill("Updated DST boundary exception");
+  const overrideSaved = page.waitForResponse((response) => response.url().includes("/api/tutor/overrides/") && response.request().method() === "PUT");
+  await overrideRow.getByRole("button", { name: "Save Tutor Override" }).click();
+  const updatedOverride = await (await overrideSaved).json();
+  expect(updatedOverride.start_at).toBe("2027-03-16T16:00:00Z");
+
   await page.reload();
   await booking.click();
   await calendar.getByLabel("Tutor Override").selectOption(createdOverride.id);
-  await expect(calendar.getByLabel("Move Booking")).toHaveValue("2027-03-15T12:00");
-  await calendar.getByLabel("I acknowledge: DST boundary exception").check();
+  await expect(calendar.getByLabel("Move Booking")).toHaveValue("2027-03-16T12:00");
+  await calendar.getByLabel("I acknowledge: Updated DST boundary exception").check();
   const overrideMove = page.waitForResponse((response) => response.url().includes("/schedule") && response.request().method() === "PUT");
   await calendar.getByRole("button", { name: "Move Booking" }).click();
-  expect((await (await overrideMove).json()).start_at).toBe("2027-03-15T16:00:00Z");
+  expect((await (await overrideMove).json()).start_at).toBe("2027-03-16T16:00:00Z");
 
   const complimentaryInvitation = await tutorMutation<{ invitation_url: string }>(page, csrfToken, "/api/tutor/invitations", { email: "complimentary-timezone@example.com" });
   const complimentaryContext = await browser.newContext({ baseURL: origin });
@@ -124,6 +147,7 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   expect((await (await complimentaryCreated).json()).start_at).toBe("2026-11-16T15:00:00Z");
 
   await complimentaryContext.close();
+  await losAngelesContext.close();
   await studentContext.close();
   await context.close();
 });
