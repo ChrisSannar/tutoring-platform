@@ -54,6 +54,25 @@ body {
   grid-template-rows: 1fr auto;
 }
 
+.dev-tools {
+  position: fixed;
+  z-index: 1;
+  top: 1rem;
+  right: 1rem;
+  width: min(16rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.75rem;
+  background: var(--paper);
+  box-shadow: 0 0.5rem 1.5rem rgb(49 54 43 / 16%);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.dev-tools summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
 main {
   display: grid;
   place-items: center;
