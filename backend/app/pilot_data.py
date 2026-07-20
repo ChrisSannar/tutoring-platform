@@ -42,14 +42,6 @@ def delete_student_pilot_data(
                     {"student_account_id": student_account_id},
                 ).scalar_one(),
             }
-            connection.execute(
-                text(
-                    "DELETE FROM invitation_claim_tokens WHERE invitation_id IN "
-                    "(SELECT id FROM invitations "
-                    "WHERE claimed_account_id = :student_account_id)"
-                ),
-                {"student_account_id": student_account_id},
-            )
             inquiry_ids = connection.execute(text(
                 "SELECT inquiry_id FROM invitations WHERE claimed_account_id = :student_account_id AND inquiry_id IS NOT NULL"
             ), {"student_account_id": student_account_id}).scalars().all()

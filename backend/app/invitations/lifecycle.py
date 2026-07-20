@@ -1,5 +1,13 @@
 
+from datetime import datetime, timezone
+
 from sqlalchemy import create_engine, text
+
+from app.invitations.transitions import (
+    ACTIVE_INVITATION_STATUSES,
+    revoke_by_id,
+    status_after_expiration,
+)
 
 def correct_invitation_email(
     database_url: str, invitation_id: str, email: str
@@ -7,10 +15,17 @@ def correct_invitation_email(
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
+            status = status_after_expiration(
+                connection, invitation_id, datetime.now(timezone.utc)
+            )
+            if status is None:
+                return None
+            if status not in ACTIVE_INVITATION_STATUSES:
+                return {"id": invitation_id, "email": "", "status": "conflict"}
             corrected = connection.execute(
                 text(
                     "UPDATE invitations SET email = :email WHERE id = :id "
-                    "AND status IN ('draft', 'active', 'created', 'opened') "
+                    "AND status IN ('created', 'opened') "
                     "RETURNING id, email, status"
                 ),
                 {"id": invitation_id, "email": email.strip().lower()},
@@ -23,14 +38,11 @@ def revoke_invitation(database_url: str, invitation_id: str) -> dict[str, str] |
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
-            revoked = connection.execute(
-                text(
-                    "UPDATE invitations SET status = 'revoked', token_hash = NULL, "
-                    "token_ciphertext = NULL WHERE id = :id AND status IN "
-                    "('active', 'created', 'opened') RETURNING id, status"
-                ),
-                {"id": invitation_id},
-            ).mappings().first()
-            return dict(revoked) if revoked is not None else None
+            status = revoke_by_id(
+                connection, invitation_id, datetime.now(timezone.utc)
+            )
+            if status is None:
+                return None
+            return {"id": invitation_id, "status": status}
     finally:
         engine.dispose()

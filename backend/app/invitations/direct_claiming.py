@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 
 from app.invitations.errors import InvitationClaimConflict
+from app.invitations.transitions import claim_by_token
 
 
 def claim_direct_invitation(
@@ -23,21 +24,13 @@ def claim_direct_invitation(
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
-            invitation = connection.execute(
-                text(
-                    "UPDATE invitations SET status = 'claimed', display_name = :name, "
-                    "claimed_account_id = :account_id, token_hash = NULL, "
-                    "token_ciphertext = NULL WHERE token_hash = :token_hash "
-                    "AND status IN ('created', 'opened') AND expires_at > :now "
-                    "RETURNING id, email, inquiry_id"
-                ),
-                {
-                    "name": display_name,
-                    "account_id": account_id,
-                    "token_hash": sha256(raw_token.encode()).hexdigest(),
-                    "now": now,
-                },
-            ).mappings().first()
+            invitation = claim_by_token(
+                connection,
+                sha256(raw_token.encode()).hexdigest(),
+                display_name,
+                account_id,
+                now,
+            )
             if invitation is None:
                 return None
             connection.execute(

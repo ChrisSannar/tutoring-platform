@@ -12,13 +12,15 @@ def create_manual_invitation(
     database_url: str, email: str, ttl_seconds: int, encryption_key: str
 ) -> dict[str, str | datetime]:
     raw_token = secrets.token_urlsafe(32)
+    created_at = datetime.now(timezone.utc)
     invitation = {
         "id": str(uuid4()),
         "email": email.strip().lower(),
         "status": "created",
         "token_hash": sha256(raw_token.encode()).hexdigest(),
         "token_ciphertext": encrypt_invitation_token(raw_token, encryption_key),
-        "expires_at": datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds),
+        "created_at": created_at,
+        "expires_at": created_at + timedelta(seconds=ttl_seconds),
     }
     engine = create_engine(database_url)
     try:
@@ -27,8 +29,9 @@ def create_manual_invitation(
                 text(
                     "INSERT INTO invitations (id, email, display_name, "
                     "shared_personal_message, private_tutor_note, status, token_hash, "
-                    "token_ciphertext, expires_at) VALUES (:id, :email, '', '', '', "
-                    ":status, :token_hash, :token_ciphertext, :expires_at)"
+                    "token_ciphertext, created_at, expires_at) VALUES (:id, :email, "
+                    "'', '', '', :status, :token_hash, :token_ciphertext, "
+                    ":created_at, :expires_at)"
                 ),
                 invitation,
             )

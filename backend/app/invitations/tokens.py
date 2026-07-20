@@ -1,6 +1,9 @@
+from datetime import datetime, timezone
 from hashlib import sha256
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
+
+from app.invitations.transitions import open_by_token
 
 def get_active_invitation_by_token(
     database_url: str, raw_token: str
@@ -9,33 +12,8 @@ def get_active_invitation_by_token(
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
-            connection.execute(
-                text(
-                    "UPDATE invitations SET status = 'expired', token_hash = NULL, "
-                    "token_ciphertext = NULL WHERE token_hash = :token_hash "
-                    "AND status IN ('active', 'created', 'opened') "
-                    "AND expires_at <= CURRENT_TIMESTAMP"
-                ),
-                {"token_hash": token_hash},
+            return open_by_token(
+                connection, token_hash, datetime.now(timezone.utc)
             )
-            invitation = connection.execute(
-                text(
-                    "SELECT email, display_name, shared_personal_message "
-                    "FROM invitations WHERE token_hash = :token_hash "
-                    "AND status IN ('active', 'created', 'opened') "
-                    "AND expires_at > CURRENT_TIMESTAMP"
-                ),
-                {"token_hash": token_hash},
-            ).mappings().first()
-            if invitation is None:
-                return None
-            connection.execute(
-                text(
-                    "UPDATE invitations SET status = 'opened' "
-                    "WHERE token_hash = :token_hash AND status = 'created'"
-                ),
-                {"token_hash": token_hash},
-            )
-            return dict(invitation)
     finally:
         engine.dispose()

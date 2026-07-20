@@ -33,6 +33,8 @@ async def correct_bound_email(
     )
     if corrected is None:
         raise HTTPException(status_code=404)
+    if corrected["status"] == "conflict":
+        raise HTTPException(status_code=409)
     return CorrectedInvitationResponse.model_validate(corrected)
 
 
@@ -49,6 +51,8 @@ async def revoke_active_invitation(
     )
     if revoked is None:
         raise HTTPException(status_code=404)
+    if revoked["status"] == "conflict":
+        raise HTTPException(status_code=409)
     return RevokedInvitationResponse.model_validate(revoked)
 
 
@@ -69,4 +73,6 @@ async def regenerate_active_invitation(
     )
     if regenerated is None:
         raise HTTPException(status_code=404)
+    if regenerated["status"] == "conflict":
+        raise HTTPException(status_code=409)
     return InvitationLinkChangeResponse.model_validate(regenerated)

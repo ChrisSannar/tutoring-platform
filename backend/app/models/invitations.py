@@ -29,7 +29,7 @@ class CreatedInvitationResponse(BaseModel):
 
 class InvitationLinkChangeResponse(BaseModel):
     id: str
-    status: Literal["active", "created"]
+    status: Literal["created"]
     invitation_url: str
     expires_at: datetime
 
@@ -44,9 +44,12 @@ class TutorInvitationRecordResponse(BaseModel):
     display_name: str
     shared_personal_message: str
     private_tutor_note: str
-    status: Literal[
-        "draft", "active", "created", "opened", "claimed", "revoked", "expired"
-    ]
+    status: Literal["created", "opened", "claimed", "revoked", "expired"]
+    created_at: datetime
+    first_opened_at: datetime | None
+    claimed_at: datetime | None
+    expired_at: datetime | None
+    revoked_at: datetime | None
     expires_at: datetime | None
 
 
@@ -61,7 +64,7 @@ class InvitationEmailCorrectionRequest(BaseModel):
 class CorrectedInvitationResponse(BaseModel):
     id: str
     email: str
-    status: Literal["draft", "active", "created", "opened"]
+    status: Literal["created", "opened"]
 
 
 class RevokedInvitationResponse(BaseModel):

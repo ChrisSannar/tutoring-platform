@@ -1,7 +1,11 @@
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import parse_qs, urlparse
 
 from alembic import command
@@ -243,6 +247,208 @@ async def test_opening_a_created_invitation_is_observational_and_keeps_it_retrie
 
 
 @pytest.mark.anyio
+async def test_invitation_http_lifecycle_records_evidence_and_preserves_terminal_revocation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
+    try:
+        created = await client.post(
+            "/api/tutor/invitations",
+            headers=headers,
+            json={"email": "lifecycle@example.com"},
+        )
+        invitation_id = created.json()["id"]
+        before_open = await client.get(f"/api/tutor/invitations/{invitation_id}")
+        opened = await client.get(created.json()["invitation_url"])
+        after_open = await client.get(f"/api/tutor/invitations/{invitation_id}")
+        opened_again = await client.get(created.json()["invitation_url"])
+        after_second_open = await client.get(
+            f"/api/tutor/invitations/{invitation_id}"
+        )
+        revoked = await client.post(
+            f"/api/tutor/invitations/{invitation_id}/revoke", headers=headers
+        )
+        revoked_again = await client.post(
+            f"/api/tutor/invitations/{invitation_id}/revoke", headers=headers
+        )
+        after_revoke = await client.get(f"/api/tutor/invitations/{invitation_id}")
+        terminal_regeneration = await client.post(
+            f"/api/tutor/invitations/{invitation_id}/regenerate", headers=headers
+        )
+        terminal_open = await client.get(created.json()["invitation_url"])
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert before_open.json()["status"] == "created"
+    assert before_open.json()["created_at"] is not None
+    assert before_open.json()["first_opened_at"] is None
+    assert opened.status_code == opened_again.status_code == 200
+    assert after_open.json()["status"] == "opened"
+    assert after_open.json()["expires_at"] == before_open.json()["expires_at"]
+    assert after_open.json()["first_opened_at"] is not None
+    assert (
+        after_second_open.json()["first_opened_at"]
+        == after_open.json()["first_opened_at"]
+    )
+    assert revoked.json() == revoked_again.json() == {
+        "id": invitation_id,
+        "status": "revoked",
+    }
+    assert after_revoke.json()["status"] == "revoked"
+    assert after_revoke.json()["revoked_at"] is not None
+    assert after_revoke.json()["claimed_at"] is None
+    assert after_revoke.json()["expired_at"] is None
+    assert terminal_regeneration.status_code == 409
+    assert terminal_open.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_claimed_invitation_exposes_atomic_claim_evidence_to_the_tutor(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
+    try:
+        created = await client.post(
+            "/api/tutor/invitations",
+            headers=headers,
+            json={"email": "claimed-evidence@example.com"},
+        )
+        token = created.json()["invitation_url"].rsplit("/", 1)[-1]
+        claimed = await client.post(
+            f"/api/invitations/{token}/claim", json={"display_name": "Avery"}
+        )
+        await client.post("/api/auth/magic-links", json={"email": "tutor@example.com"})
+        outbox = await client.get("/api/development/outbox")
+        tutor_token = parse_qs(
+            urlparse(outbox.json()["messages"][-1]["magic_link"]).query
+        )["token"][0]
+        tutor = await client.post(
+            "/api/auth/magic-links/confirm", json={"token": tutor_token}
+        )
+        inspected = await client.get(
+            f"/api/tutor/invitations/{created.json()['id']}"
+        )
+        terminal_revoke = await client.post(
+            f"/api/tutor/invitations/{created.json()['id']}/revoke",
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": tutor.json()["csrf_token"],
+            },
+        )
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert claimed.status_code == 200
+    assert inspected.json()["status"] == "claimed"
+    assert inspected.json()["claimed_at"] is not None
+    assert inspected.json()["expired_at"] is None
+    assert inspected.json()["revoked_at"] is None
+    assert terminal_revoke.status_code == 409
+
+
+@pytest.mark.anyio
+async def test_live_claim_and_revocation_race_has_one_evidence_backed_terminal_winner(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    setup_client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
+    created = await setup_client.post(
+        "/api/tutor/invitations",
+        headers=headers,
+        json={"email": "racing-lifecycle@example.com"},
+    )
+    invitation_id = created.json()["id"]
+    token = created.json()["invitation_url"].rsplit("/", 1)[-1]
+    tutor_cookies = dict(setup_client.cookies)
+    await setup_client.aclose()
+
+    with socket.socket() as available_port:
+        available_port.bind(("127.0.0.1", 0))
+        port = available_port.getsockname()[1]
+    server = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--workers",
+            "2",
+            "--no-access-log",
+        ],
+        cwd="backend",
+        env=os.environ.copy(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(100):
+            try:
+                if httpx.get(f"{base_url}/api/health").status_code == 200:
+                    break
+            except httpx.ConnectError:
+                time.sleep(0.05)
+        else:
+            raise AssertionError("live HTTP test server did not start")
+
+        barrier = threading.Barrier(2)
+
+        def claim() -> httpx.Response:
+            barrier.wait()
+            return httpx.post(
+                f"{base_url}/api/invitations/{token}/claim",
+                json={"display_name": "Race Winner"},
+            )
+
+        def revoke() -> httpx.Response:
+            barrier.wait()
+            return httpx.post(
+                f"{base_url}/api/tutor/invitations/{invitation_id}/revoke",
+                headers=headers,
+                cookies=tutor_cookies,
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            claim_future = executor.submit(claim)
+            revoke_future = executor.submit(revoke)
+            claim_response = claim_future.result(timeout=10)
+            revoke_response = revoke_future.result(timeout=10)
+        inspected = httpx.get(
+            f"{base_url}/api/tutor/invitations/{invitation_id}",
+            cookies=tutor_cookies,
+        )
+    finally:
+        server.terminate()
+        try:
+            server.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            server.kill()
+            server.wait(timeout=5)
+        get_settings.cache_clear()
+
+    assert sorted([claim_response.status_code, revoke_response.status_code]) == [200, 409]
+    assert inspected.status_code == 200
+    record = inspected.json()
+    if claim_response.status_code == 200:
+        assert record["status"] == "claimed"
+        assert record["claimed_at"] is not None
+        assert record["revoked_at"] is None
+    else:
+        assert record["status"] == "revoked"
+        assert record["revoked_at"] is not None
+        assert record["claimed_at"] is None
+
+
+@pytest.mark.anyio
 async def test_expiration_erases_the_retrievable_invitation_link_lazily(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -267,6 +473,71 @@ async def test_expiration_erases_the_retrievable_invitation_link_lazily(
 
     assert retrieved.status_code == 404
     assert inspected.json()["status"] == "expired"
+    assert inspected.json()["expired_at"] is not None
+
+
+@pytest.mark.anyio
+async def test_every_expired_invitation_interaction_persists_the_same_terminal_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("TUTORING_INVITATION_TTL_SECONDS", "-1")
+    client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf_token}
+
+    async def create(email: str) -> dict:
+        response = await client.post(
+            "/api/tutor/invitations", headers=headers, json={"email": email}
+        )
+        return response.json()
+
+    try:
+        opening = await create("expire-open@example.com")
+        claiming = await create("expire-claim@example.com")
+        correction = await create("expire-correct@example.com")
+        regeneration = await create("expire-regenerate@example.com")
+        revocation = await create("expire-revoke@example.com")
+        inspection = await create("expire-inspect@example.com")
+
+        results = {
+            opening["id"]: await client.get(opening["invitation_url"]),
+            claiming["id"]: await client.post(
+                f"/api/invitations/{claiming['invitation_url'].rsplit('/', 1)[-1]}/claim",
+                json={"display_name": "Late"},
+            ),
+            correction["id"]: await client.patch(
+                f"/api/tutor/invitations/{correction['id']}",
+                headers=headers,
+                json={"email": "corrected@example.com"},
+            ),
+            regeneration["id"]: await client.post(
+                f"/api/tutor/invitations/{regeneration['id']}/regenerate",
+                headers=headers,
+            ),
+            revocation["id"]: await client.post(
+                f"/api/tutor/invitations/{revocation['id']}/revoke", headers=headers
+            ),
+            inspection["id"]: await client.get(
+                f"/api/tutor/invitations/{inspection['id']}"
+            ),
+        }
+        records = {
+            invitation_id: await client.get(
+                f"/api/tutor/invitations/{invitation_id}"
+            )
+            for invitation_id in results
+        }
+    finally:
+        await client.aclose()
+        get_settings.cache_clear()
+
+    assert results[opening["id"]].status_code == 404
+    assert results[claiming["id"]].status_code == 409
+    assert results[correction["id"]].status_code == 409
+    assert results[regeneration["id"]].status_code == 409
+    assert results[revocation["id"]].status_code == 409
+    assert results[inspection["id"]].status_code == 200
+    assert all(record.json()["status"] == "expired" for record in records.values())
+    assert all(record.json()["expired_at"] is not None for record in records.values())
 
 
 @pytest.mark.anyio
@@ -429,6 +700,11 @@ async def test_tutor_inspection_never_returns_the_raw_invitation_token(
         "shared_personal_message",
         "private_tutor_note",
         "status",
+        "created_at",
+        "first_opened_at",
+        "claimed_at",
+        "expired_at",
+        "revoked_at",
         "expires_at",
     }
     assert inspected.json()["status"] == "created"
@@ -685,7 +961,7 @@ async def test_unusable_invitation_tokens_have_indistinguishable_safe_responses(
         )
 
         expired_id, expired_url = await create("expired@example.com")
-        claimed_id, claimed_url = await create("claimed@example.com")
+        _claimed_id, claimed_url = await create("claimed@example.com")
         engine = create_engine(f"sqlite:///{tmp_path / 'invitations.sqlite3'}")
         try:
             with engine.begin() as connection:
@@ -696,12 +972,15 @@ async def test_unusable_invitation_tokens_have_indistinguishable_safe_responses(
                     ),
                     {"id": expired_id, "expires_at": "2000-01-01 00:00:00"},
                 )
-                connection.execute(
-                    text("UPDATE invitations SET status = 'claimed' WHERE id = :id"),
-                    {"id": claimed_id},
-                )
         finally:
             engine.dispose()
+
+        claimed_token = claimed_url.rsplit("/", 1)[-1]
+        claimed = await client.post(
+            f"/api/invitations/{claimed_token}/claim",
+            json={"display_name": "Claimed Student"},
+        )
+        assert claimed.status_code == 200
 
         unusable_urls = [
             "/api/invitations/not-an-issued-token",

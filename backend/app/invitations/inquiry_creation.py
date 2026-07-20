@@ -12,7 +12,8 @@ def create_invitation_from_inquiry(
     database_url: str, inquiry_id: str, ttl_seconds: int, encryption_key: str
 ) -> dict[str, str | datetime] | None:
     raw_token = secrets.token_urlsafe(32)
-    expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+    created_at = datetime.now(timezone.utc)
+    expires_at = created_at + timedelta(seconds=ttl_seconds)
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
@@ -30,8 +31,9 @@ def create_invitation_from_inquiry(
                 text(
                     "INSERT INTO invitations (id, inquiry_id, email, display_name, "
                     "shared_personal_message, private_tutor_note, status, token_hash, "
-                    "token_ciphertext, expires_at) VALUES (:id, :inquiry_id, :email, "
-                    "'', '', '', 'created', :token_hash, :ciphertext, :expires_at)"
+                    "token_ciphertext, created_at, expires_at) VALUES (:id, :inquiry_id, "
+                    ":email, '', '', '', 'created', :token_hash, :ciphertext, "
+                    ":created_at, :expires_at)"
                 ),
                 {
                     "id": invitation_id,
@@ -39,6 +41,7 @@ def create_invitation_from_inquiry(
                     "email": inquiry["email"],
                     "token_hash": sha256(raw_token.encode()).hexdigest(),
                     "ciphertext": encrypt_invitation_token(raw_token, encryption_key),
+                    "created_at": created_at,
                     "expires_at": expires_at,
                 },
             )
