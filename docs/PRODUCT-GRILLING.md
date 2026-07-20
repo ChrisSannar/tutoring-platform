@@ -439,6 +439,17 @@ Students cannot select the same Bookable Slot. Successful payment converts the h
 into a Booking; abandoned or expired Checkout releases it. Session Credit and First
 Session Promotion bookings confirm atomically and do not need a hold.
 
+Stripe Checkout and Refund Request fulfillment are non-critical, deferred capabilities,
+not a dependable production payment path. Until the operational gaps in
+[the current handoff](HANDOFF.md#deferred-payment-operation) are hardened, the Tutor may
+arrange Venmo, cash, or another external payment outside the application. The application
+does not verify or record that payment. An externally paid appointment must not be entered
+as a Complimentary Booking or Session Credit-funded Booking merely to bypass this gap.
+
+Future payment hardening must preserve [ADR 0005](adr/0005-fulfill-paid-bookings-from-stripe-webhooks.md):
+the application remains authoritative for Booking state, and only a verified Stripe
+webhook may fulfill a paid Booking.
+
 One **Session Credit** funds one 60-minute Booking. The Tutor initially owns all credit
 grants and balance adjustments. Paying during scheduling funds only the selected
 Booking and does not add a general credit balance; Student-purchased credits, bundles,
