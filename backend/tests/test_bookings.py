@@ -1,6 +1,13 @@
-import asyncio
-from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+import os
 from pathlib import Path
+import socket
+import subprocess
+import sys
+import threading
+import time
+from zoneinfo import ZoneInfo
 
 from alembic import command
 from alembic.config import Config
@@ -107,29 +114,168 @@ async def test_promotion_then_credit_booking_snapshots_settings(monkeypatch, tmp
     assert credit.json()["price_cents"] == 9000
 
 
-@pytest.mark.anyio
-async def test_concurrent_booking_attempts_cannot_duplicate_slot_or_funding(monkeypatch, tmp_path: Path) -> None:
-    tutor, _, student, student_csrf, database_url = await booking_context(monkeypatch, tmp_path)
-    base = {"Origin": "http://testserver", "X-CSRF-Token": student_csrf}
+def test_live_concurrent_bookings_cannot_duplicate_slot_or_funding(
+    monkeypatch, tmp_path: Path
+) -> None:
+    now = datetime.now(timezone.utc)
+    tutor_zone = ZoneInfo("America/Chicago")
+    local_today = now.astimezone(tutor_zone).date()
+    days_until_monday = (7 - local_today.weekday()) % 7
+    race_day = local_today + timedelta(days=days_until_monday)
+    first_slot = datetime.combine(
+        race_day, datetime.min.time().replace(hour=9), tutor_zone
+    )
+    if first_slot.astimezone(timezone.utc) < now + timedelta(hours=24):
+        first_slot += timedelta(days=7)
+    race_slots = [
+        (first_slot + timedelta(hours=offset))
+        .astimezone(timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+        for offset in range(5)
+    ]
+    database_url = f"sqlite:///{tmp_path / 'live-bookings.sqlite3'}"
+    config = Config("backend/alembic.ini")
+    config.set_main_option("sqlalchemy.url", database_url)
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    with engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO accounts (id, email, role, display_name) VALUES "
+            "('tutor', 'tutor@example.com', 'tutor', NULL), "
+            "('same-a', 'same-a@example.com', 'student', 'Same A'), "
+            "('same-b', 'same-b@example.com', 'student', 'Same B'), "
+            "('credit-racer', 'credit-racer@example.com', 'student', 'Credit Racer')"
+        ))
+        connection.execute(text(
+            "INSERT INTO availability_windows (id, weekday, start_time, end_time) "
+            "VALUES ('race-monday', 0, '09:00', '17:00')"
+        ))
+        connection.execute(text(
+            "INSERT INTO credit_ledger_entries "
+            "(id, student_account_id, event_type, quantity, reason, idempotency_key, created_at) VALUES "
+            "('same-a-promotion', 'same-a', 'promotion_granted', 1, NULL, 'same-a-promotion', CURRENT_TIMESTAMP), "
+            "('same-b-promotion', 'same-b', 'promotion_granted', 1, NULL, 'same-b-promotion', CURRENT_TIMESTAMP), "
+            "('credit-racer-credit', 'credit-racer', 'credit_adjustment', 1, 'Prepaid', 'credit-racer-credit', CURRENT_TIMESTAMP)"
+        ))
+    engine.dispose()
+
+    with socket.socket() as available_port:
+        available_port.bind(("127.0.0.1", 0))
+        port = available_port.getsockname()[1]
+    base_url = f"http://127.0.0.1:{port}"
+    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
+    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
+    monkeypatch.setenv("TUTORING_APPLICATION_ORIGIN", base_url)
+    get_settings.cache_clear()
+    tokens = {
+        student: issue_magic_link(database_url, f"{student}@example.com", 900)
+        for student in ("same-a", "same-b", "credit-racer")
+    }
+    server = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--workers",
+            "2",
+            "--no-access-log",
+        ],
+        cwd="backend",
+        env=os.environ.copy(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
     try:
-        first, second = await asyncio.gather(
-            student.post(
-                "/api/student/bookings",
-                headers={**base, "Idempotency-Key": "concurrent-one"},
-                json={"start_at": "2026-07-20T14:00:00Z", "focus": None, "confirmed": True},
-            ),
-            student.post(
-                "/api/student/bookings",
-                headers={**base, "Idempotency-Key": "concurrent-two"},
-                json={"start_at": "2026-07-20T14:00:00Z", "focus": None, "confirmed": True},
-            ),
+        for _ in range(100):
+            try:
+                if httpx.get(f"{base_url}/api/health").status_code == 200:
+                    break
+            except httpx.ConnectError:
+                time.sleep(0.05)
+        else:
+            raise AssertionError("live HTTP test server did not start")
+
+        sessions = {}
+        for student, token in tokens.items():
+            authenticated = httpx.post(
+                f"{base_url}/api/auth/magic-links/confirm", json={"token": token}
+            )
+            sessions[student] = (
+                dict(authenticated.cookies),
+                authenticated.json()["csrf_token"],
+            )
+
+        def race(attempts):
+            barrier = threading.Barrier(2)
+
+            def submit(student: str, start_at: str, key: str):
+                cookies, csrf = sessions[student]
+                barrier.wait()
+                request_started = time.monotonic()
+                response = httpx.post(
+                    f"{base_url}/api/student/bookings",
+                    headers={
+                        "Origin": base_url,
+                        "X-CSRF-Token": csrf,
+                        "Idempotency-Key": key,
+                    },
+                    cookies=cookies,
+                    json={"start_at": start_at, "focus": None, "confirmed": True},
+                )
+                return response, request_started, time.monotonic()
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [executor.submit(submit, *attempt) for attempt in attempts]
+                results = [future.result(timeout=10) for future in futures]
+            assert max(result[1] for result in results) < min(
+                result[2] for result in results
+            )
+            return [result[0] for result in results]
+
+        same_slot = race([
+            ("same-a", race_slots[0], "same-slot-a"),
+            ("same-b", race_slots[0], "same-slot-b"),
+        ])
+        promotion_racer = (
+            "same-a" if same_slot[0].status_code == 409 else "same-b"
+        )
+        promotion = race([
+            (promotion_racer, race_slots[1], "promotion-one"),
+            (promotion_racer, race_slots[2], "promotion-two"),
+        ])
+        credit = race([
+            ("credit-racer", race_slots[3], "credit-one"),
+            ("credit-racer", race_slots[4], "credit-two"),
+        ])
+        promotion_funding = httpx.get(
+            f"{base_url}/api/student/funding",
+            cookies=sessions[promotion_racer][0],
+        )
+        credit_funding = httpx.get(
+            f"{base_url}/api/student/funding",
+            cookies=sessions["credit-racer"][0],
         )
     finally:
-        await tutor.aclose()
-        await student.aclose()
+        server.terminate()
+        try:
+            server.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            server.kill()
+            server.wait(timeout=5)
         get_settings.cache_clear()
 
-    assert sorted([first.status_code, second.status_code]) == [201, 409]
+    assert sorted(response.status_code for response in same_slot) == [201, 409]
+    assert sorted(response.status_code for response in promotion) == [201, 409]
+    assert sorted(response.status_code for response in credit) == [201, 409]
+    assert promotion_funding.json()["first_session_promotion"] == "unavailable"
+    assert credit_funding.json()["session_credits"] == 0
 
 
 @pytest.mark.anyio
@@ -258,6 +404,37 @@ async def test_tutor_calendar_edits_and_moves_booking_without_changing_funding(m
     assert overridden.json()["funding_kind"] == "first_session_promotion"
     assert denied.status_code == 401
     assert [event for event in funding_events if event[0] == "promotion_consumed"] == [("promotion_consumed", -1)]
+
+
+@pytest.mark.anyio
+async def test_student_reschedule_explicitly_excludes_its_booking_from_occupancy(
+    monkeypatch, tmp_path: Path
+) -> None:
+    tutor, _, student, student_csrf, _ = await booking_context(monkeypatch, tmp_path)
+    headers = {"Origin": "http://testserver", "X-CSRF-Token": student_csrf}
+    try:
+        created = await student.post(
+            "/api/student/bookings",
+            headers={**headers, "Idempotency-Key": "self-exclusion-booking"},
+            json={
+                "start_at": "2026-07-20T14:00:00Z",
+                "focus": None,
+                "confirmed": True,
+            },
+        )
+        rescheduled = await student.put(
+            f"/api/student/bookings/{created.json()['id']}/schedule",
+            headers={**headers, "Idempotency-Key": "self-exclusion-move"},
+            json={"start_at": "2026-07-20T09:00:00-05:00"},
+        )
+    finally:
+        await tutor.aclose()
+        await student.aclose()
+        get_settings.cache_clear()
+
+    assert created.status_code == 201
+    assert rescheduled.status_code == 200
+    assert rescheduled.json()["start_at"] == "2026-07-20T14:00:00Z"
 
 
 @pytest.mark.anyio

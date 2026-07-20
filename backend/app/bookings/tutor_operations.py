@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine, text
 
-from app.availability import derive_bookable_slots
+from app.bookings.shared import no_conflict, valid_slot
+from app.occupancy import utc_aware
 
 
 def booking_response(row) -> dict:
@@ -27,23 +28,32 @@ def update_meeting_details(database_url: str, booking_id: str, details: str | No
 
 
 def move_booking(database_url: str, booking_id: str, start: datetime, now: datetime, override_id: str | None, acknowledged: bool) -> dict | None:
-    _, slots = derive_bookable_slots(database_url, now)
-    normal = any(slot["start_at"] == start for slot in slots)
+    start = utc_aware(start)
     engine = create_engine(database_url)
     connection = engine.connect()
     try:
         connection.exec_driver_sql("BEGIN IMMEDIATE")
+        normal = valid_slot(
+            connection,
+            database_url,
+            start,
+            now,
+            exclude_booking_id=booking_id,
+        )
         booking = connection.execute(text("SELECT 1 FROM bookings WHERE id = :id AND status = 'upcoming'"), {"id": booking_id}).first()
         override = None if override_id is None else connection.execute(text(
             "SELECT 1 FROM tutor_overrides WHERE id = :id AND start_at = :start"
         ), {"id": override_id, "start": start}).first()
         end = start + timedelta(hours=1)
-        conflict = connection.execute(text(
-            "SELECT 1 FROM bookings WHERE id != :id AND status = 'upcoming' AND start_at < :end AND end_at > :start "
-            "UNION ALL SELECT 1 FROM blocked_times WHERE start_at < :end AND end_at > :start "
-            "UNION ALL SELECT 1 FROM slot_holds WHERE expires_at > :now AND start_at < :end AND end_at > :start LIMIT 1"
-        ), {"id": booking_id, "start": start, "end": end, "now": now}).first()
-        if booking is None or conflict is not None or not (normal or (override is not None and acknowledged)):
+        free = no_conflict(
+            connection,
+            None,
+            start,
+            end,
+            now,
+            exclude_booking_id=booking_id,
+        )
+        if booking is None or not free or not (normal or (override is not None and acknowledged)):
             connection.rollback()
             return None
         row = connection.execute(text(

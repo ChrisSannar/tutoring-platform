@@ -4,9 +4,11 @@ from uuid import uuid4
 from sqlalchemy import create_engine, text
 
 from app.bookings.shared import account_id, booking_values, insert_booking, no_conflict, response, settings_snapshot, valid_slot
+from app.occupancy import utc_aware
 
 
 def create_student_booking(database_url: str, raw_session: str, start: datetime, focus: str | None, key: str, now: datetime) -> dict | None:
+    start = utc_aware(start)
     engine = create_engine(database_url)
     connection = engine.connect()
     try:
@@ -26,7 +28,7 @@ def create_student_booking(database_url: str, raw_session: str, start: datetime,
                       "details": existing["meeting_details_snapshot"], "price": existing["price_cents_snapshot"],
                       "currency": existing["currency_snapshot"]}
             return response(values, existing, existing["status"])
-        if not valid_slot(database_url, start, now):
+        if not valid_slot(connection, database_url, start, now):
             connection.rollback()
             return None
         end = start + timedelta(hours=1)

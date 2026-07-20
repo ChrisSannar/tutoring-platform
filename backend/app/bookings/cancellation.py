@@ -3,8 +3,9 @@ from uuid import uuid4
 
 from sqlalchemy import create_engine, text
 
-from app.bookings.student_changes import add_receipt, aware, owned_booking, receipt_exists
+from app.bookings.student_changes import add_receipt, owned_booking, receipt_exists
 from app.bookings.tutor_operations import booking_response
+from app.occupancy import utc_aware
 
 
 def restoration_event(funding_kind: str) -> str | None:
@@ -20,7 +21,7 @@ def cancel_student_booking(database_url: str, raw_session: str, booking_id: str,
         if receipt_exists(connection, booking_id, key, "cancel"):
             connection.commit(); return booking_response(booking)
         if booking["status"] != "upcoming": connection.rollback(); return None
-        late = aware(booking["start_at"]) - now < timedelta(hours=24)
+        late = utc_aware(booking["start_at"]) - utc_aware(now) < timedelta(hours=24)
         if late and not forfeit: connection.rollback(); return None
         event = None if late else restoration_event(booking["funding_kind"])
         if event is not None:

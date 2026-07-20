@@ -5,6 +5,7 @@ from uuid import uuid4
 from sqlalchemy import text
 
 from app.availability import derive_bookable_slots
+from app.occupancy import interval_is_free, utc_aware
 
 
 def account_id(connection, raw_session: str) -> str | None:
@@ -14,21 +15,46 @@ def account_id(connection, raw_session: str) -> str | None:
     ), {"hash": sha256(raw_session.encode()).hexdigest()}).scalar()
 
 
-def valid_slot(database_url: str, start: datetime, now: datetime) -> bool:
-    _, slots = derive_bookable_slots(database_url, now)
-    return any(slot["start_at"] == start for slot in slots)
+def valid_slot(
+    connection,
+    database_url: str,
+    start: datetime,
+    now: datetime,
+    *,
+    exclude_booking_id: str | None = None,
+) -> bool:
+    _, slots = derive_bookable_slots(
+        database_url,
+        now,
+        connection=connection,
+        exclude_booking_id=exclude_booking_id,
+    )
+    start_at = utc_aware(start)
+    return any(slot["start_at"] == start_at for slot in slots)
 
 
-def no_conflict(connection, student_id: str, start: datetime, end: datetime, now: datetime) -> bool:
-    overlap = connection.execute(text(
-        "SELECT 1 FROM bookings WHERE status = 'upcoming' AND start_at < :end AND end_at > :start "
-        "UNION ALL SELECT 1 FROM blocked_times WHERE start_at < :end AND end_at > :start "
-        "UNION ALL SELECT 1 FROM slot_holds WHERE expires_at > :now AND start_at < :end AND end_at > :start LIMIT 1"
-    ), {"start": start, "end": end, "now": now}).first()
-    upcoming = connection.execute(text(
-        "SELECT 1 FROM bookings WHERE student_account_id = :student AND status = 'upcoming'"
-    ), {"student": student_id}).first()
-    return overlap is None and upcoming is None
+def no_conflict(
+    connection,
+    student_id: str | None,
+    start: datetime,
+    end: datetime,
+    now: datetime,
+    *,
+    exclude_booking_id: str | None = None,
+) -> bool:
+    upcoming = None
+    if student_id is not None:
+        upcoming = connection.execute(text(
+            "SELECT 1 FROM bookings WHERE student_account_id = :student "
+            "AND status = 'upcoming' AND (:booking IS NULL OR id != :booking)"
+        ), {"student": student_id, "booking": exclude_booking_id}).first()
+    return interval_is_free(
+        connection,
+        start,
+        end,
+        now,
+        exclude_booking_id=exclude_booking_id,
+    ) and upcoming is None
 
 
 def settings_snapshot(connection) -> dict:

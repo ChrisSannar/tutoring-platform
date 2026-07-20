@@ -3,50 +3,30 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import create_engine, text
 
-
-def aware(value: datetime | str) -> datetime:
-    if isinstance(value, str):
-        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
-
-
-def conflicts(database_url: str, now: datetime) -> list[tuple[datetime, datetime]]:
-    engine = create_engine(database_url)
-    try:
-        with engine.connect() as connection:
-            rows = connection.execute(text(
-                "SELECT start_at, end_at FROM blocked_times UNION ALL "
-                "SELECT start_at, end_at FROM bookings WHERE status = 'upcoming' UNION ALL "
-                "SELECT start_at, end_at FROM slot_holds WHERE expires_at > :now"
-            ), {"now": now}).all()
-            return [(aware(row[0]), aware(row[1])) for row in rows]
-    finally:
-        engine.dispose()
-
-
-def windows(database_url: str) -> tuple[str, list[dict]]:
-    engine = create_engine(database_url)
-    try:
-        with engine.connect() as connection:
-            timezone_name = connection.execute(text(
-                "SELECT tutor_timezone FROM tutor_settings WHERE id = 1"
-            )).scalar_one()
-            rows = connection.execute(text(
-                "SELECT weekday, start_time, end_time FROM availability_windows"
-            )).mappings()
-            return timezone_name, [dict(row) for row in rows]
-    finally:
-        engine.dispose()
-
+from app.occupancy import occupied_intervals, utc_aware
 
 def local_datetime(day: date, value: str, zone: ZoneInfo) -> datetime:
     parsed = time.fromisoformat(value)
     return datetime.combine(day, parsed, zone)
 
 
-def derive_bookable_slots(database_url: str, now: datetime) -> tuple[str, list[dict]]:
-    timezone_name, recurring = windows(database_url)
-    zone, busy = ZoneInfo(timezone_name), conflicts(database_url, now)
+def _derive_bookable_slots(
+    connection, now: datetime, exclude_booking_id: str | None
+) -> tuple[str, list[dict]]:
+    now = utc_aware(now)
+    timezone_name = connection.execute(
+        text("SELECT tutor_timezone FROM tutor_settings WHERE id = 1")
+    ).scalar_one()
+    recurring = [
+        dict(row)
+        for row in connection.execute(
+            text("SELECT weekday, start_time, end_time FROM availability_windows")
+        ).mappings()
+    ]
+    zone = ZoneInfo(timezone_name)
+    busy = occupied_intervals(
+        connection, now, exclude_booking_id=exclude_booking_id
+    )
     notice, horizon = now + timedelta(hours=24), now + timedelta(weeks=8)
     first_day = now.astimezone(zone).date()
     slots: list[dict] = []
@@ -65,3 +45,22 @@ def derive_bookable_slots(database_url: str, now: datetime) -> tuple[str, list[d
                     slots.append({"start_at": start_at, "end_at": end_at})
                 cursor += timedelta(hours=1)
     return timezone_name, slots
+
+
+def derive_bookable_slots(
+    database_url: str,
+    now: datetime,
+    *,
+    connection=None,
+    exclude_booking_id: str | None = None,
+) -> tuple[str, list[dict]]:
+    if connection is not None:
+        return _derive_bookable_slots(connection, now, exclude_booking_id)
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as opened_connection:
+            return _derive_bookable_slots(
+                opened_connection, now, exclude_booking_id
+            )
+    finally:
+        engine.dispose()
