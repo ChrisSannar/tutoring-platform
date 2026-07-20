@@ -33,11 +33,13 @@ test("Tutor signs in through the development outbox and logs out", async ({
 
   await availabilityTab.click();
   const availabilityPanel = page.getByRole("tabpanel", { name: "Availability & Business" });
+  await expect(studentsPanel).toBeHidden();
   await expect(availabilityPanel.getByRole("heading", { name: "Availability Calendar" })).toBeVisible();
   await expect(availabilityPanel.getByRole("heading", { name: "Business settings" })).toBeVisible();
 
   await requestsTab.click();
   const requestsPanel = page.getByRole("tabpanel", { name: "Requests", exact: true });
+  await expect(availabilityPanel).toBeHidden();
   await expect(requestsPanel.getByRole("heading", { name: "Active Inquiries" })).toBeVisible();
   await expect(requestsPanel.getByRole("heading", { name: "Login Requests" })).toBeVisible();
   await expect(requestsPanel.getByRole("heading", { name: "Refund Requests" })).toBeVisible();
@@ -74,6 +76,7 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await monday.getByLabel("Availability weekday").selectOption("1");
   await monday.getByRole("button", { name: "Save Availability" }).click();
   await page.reload();
+  await page.getByRole("tab", { name: "Availability & Business" }).click();
   const tuesday = page.getByRole("article", { name: "Tuesday Availability" });
   await expect(tuesday).toBeVisible();
   await tuesday.getByRole("button", { name: "Delete Availability" }).click();
