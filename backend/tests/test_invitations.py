@@ -101,7 +101,7 @@ async def test_tutor_creates_and_retrieves_one_active_manual_invitation_link(
 
 
 @pytest.mark.anyio
-async def test_tutor_cannot_create_a_superseded_draft_invitation(
+async def test_tutor_cannot_create_an_invitation_with_retired_personalization_fields(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     client, csrf_token = await authenticated_tutor_client(monkeypatch, tmp_path)
