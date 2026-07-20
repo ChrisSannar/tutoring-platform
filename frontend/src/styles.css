@@ -73,6 +73,30 @@ body {
   font-weight: 700;
 }
 
+.dev-tools-bottom {
+  top: auto;
+  bottom: 1rem;
+}
+
+.dev-tools-left {
+  right: auto;
+  left: 1rem;
+}
+
+.dev-tools-position-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.dev-tools-position-buttons button {
+  width: 1.75rem;
+  min-height: 1.75rem;
+  margin: 0;
+  padding: 0;
+}
+
 main {
   display: grid;
   place-items: center;
