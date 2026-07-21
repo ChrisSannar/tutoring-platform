@@ -222,7 +222,7 @@ textarea {
   border-radius: 0.65rem;
   color: var(--ink);
   background: var(--field);
-  box-shadow: inset 0 1px 2px rgb(24 34 29 / 6%);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
   font: 1rem/1.4 ui-sans-serif, system-ui, sans-serif;
   transition:
     border-color 140ms ease,
@@ -254,8 +254,8 @@ textarea:focus-visible {
   border-color: var(--accent);
   outline: none;
   box-shadow:
-    0 0 0 3px rgb(215 166 93 / 32%),
-    inset 0 1px 2px rgb(24 34 29 / 5%);
+    0 0 0 3px color-mix(in srgb, var(--focus) 32%, transparent),
+    inset 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent);
 }
 
 input[readonly],
@@ -274,7 +274,7 @@ button {
   border-radius: 999px;
   color: var(--paper);
   background: var(--accent);
-  box-shadow: 0 0.35rem 0.9rem rgb(49 92 73 / 14%);
+  box-shadow: 0 0.35rem 0.9rem color-mix(in srgb, var(--accent) 14%, transparent);
   cursor: pointer;
   font: 700 0.95rem/1 ui-sans-serif, system-ui, sans-serif;
   transition:
@@ -291,7 +291,7 @@ button + button {
 button:hover {
   border-color: var(--accent-dark);
   background: var(--accent-dark);
-  box-shadow: 0 0.5rem 1rem rgb(49 92 73 / 20%);
+  box-shadow: 0 0.5rem 1rem color-mix(in srgb, var(--accent) 20%, transparent);
   transform: translateY(-1px);
 }
 
@@ -374,6 +374,19 @@ dialog::backdrop {
   --tutor-line: #b7c6d8;
   --tutor-major: #91a7c0;
   --tutor-accent: #146cff;
+  --tutor-control: #122239;
+  --tutor-control-ink: #ffffff;
+  --tutor-control-border: var(--tutor-control);
+  --ink: var(--tutor-ink);
+  --muted-ink: var(--tutor-muted);
+  --page: var(--tutor-bg);
+  --paper: var(--tutor-surface);
+  --field: var(--tutor-raised);
+  --line: var(--tutor-line);
+  --line-strong: var(--tutor-major);
+  --accent: var(--tutor-accent);
+  --accent-dark: color-mix(in srgb, var(--tutor-accent) 82%, var(--tutor-ink));
+  --focus: var(--tutor-accent);
   display: grid;
   min-height: 100vh;
   grid-template-columns: 16rem minmax(0, 1fr);
@@ -384,11 +397,9 @@ dialog::backdrop {
   color: var(--tutor-ink);
   background-color: var(--tutor-bg);
   background-image:
-    linear-gradient(var(--tutor-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--tutor-major) 1px, transparent 1px),
-    linear-gradient(var(--tutor-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--tutor-line) 1px, transparent 1px);
-  background-size: 140px 140px, 140px 140px, 28px 28px, 28px 28px;
+    radial-gradient(circle, color-mix(in srgb, var(--tutor-major) 55%, transparent) 1px, transparent 1.2px),
+    radial-gradient(circle, color-mix(in srgb, var(--tutor-line) 45%, transparent) 0.7px, transparent 0.9px);
+  background-size: 140px 140px, 28px 28px;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -400,8 +411,36 @@ dialog::backdrop {
   --tutor-muted: #8fa6bf;
   --tutor-line: #1e3d5d;
   --tutor-major: #315779;
-  --tutor-accent: #4c9aff;
+  --tutor-accent: #9cbcff;
+  --tutor-control: #171e2b;
+  --tutor-control-border: var(--tutor-control-ink);
 }
+
+.tutor-workspace button {
+  border-color: var(--tutor-control-border);
+  border-radius: 0;
+  color: var(--tutor-control-ink);
+  background: var(--tutor-control);
+  box-shadow: none;
+}
+
+.tutor-workspace button:hover {
+  border-color: var(--tutor-control-border);
+  background: color-mix(in srgb, var(--tutor-control) 88%, var(--tutor-accent));
+  box-shadow: none;
+}
+
+.tutor-workspace button:disabled {
+  border-color: var(--tutor-line);
+  color: var(--tutor-muted);
+  background: var(--tutor-bg);
+}
+
+.tutor-workspace input,
+.tutor-workspace select,
+.tutor-workspace textarea,
+.tutor-workspace article,
+.tutor-workspace dialog { border-radius: 0; }
 
 .tutor-rail {
   position: sticky;
@@ -427,10 +466,11 @@ dialog::backdrop {
 
 .tutor-identity strong { color: var(--tutor-accent); }
 .tutor-rail nav { display: grid; gap: 0.35rem; margin-top: 1.25rem; }
-.tutor-rail nav button,
-.tutor-rail-actions button,
-.tutor-overview button {
+.tutor-rail nav button {
+  display: flex;
   min-height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
   margin: 0;
   border-color: transparent;
   border-radius: 0.35rem;
@@ -442,9 +482,7 @@ dialog::backdrop {
 }
 
 .tutor-rail nav button:hover,
-.tutor-rail nav button[aria-current="page"],
-.tutor-rail-actions button:hover,
-.tutor-overview button:hover {
+.tutor-rail nav button[aria-current="page"] {
   border-color: var(--tutor-line);
   color: var(--tutor-ink);
   background: var(--tutor-raised);
@@ -453,7 +491,9 @@ dialog::backdrop {
 }
 
 .tutor-rail nav button[aria-current="page"] { border-left: 3px solid var(--tutor-accent); }
-.request-badge { float: right; min-width: 1.35rem; padding: 0.2rem; border-radius: 999px; color: #fff; background: var(--tutor-accent); text-align: center; }
+.tutor-rail-actions button,
+.tutor-overview button { margin: 0; transform: none; }
+.request-badge { display: grid; width: 1.5rem; height: 1.5rem; flex: 0 0 1.5rem; place-items: center; padding: 0; border: 1px solid var(--tutor-control-ink); border-radius: 50%; color: var(--tutor-control-ink); background: var(--tutor-control); line-height: 1; }
 .tutor-rail-actions { display: grid; gap: 0.35rem; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--tutor-line); }
 .tutor-work-area { min-width: 0; }
 .tutor-day { padding: clamp(2.5rem, 7vw, 5.5rem) clamp(1rem, 4vw, 3rem) 2rem; }
@@ -494,7 +534,7 @@ dialog::backdrop {
 
 .tutor-overview-grid article header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .tutor-overview-grid h2 { margin: 0; color: var(--tutor-ink); font: 700 0.8rem/1.2 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; }
-.tutor-overview-grid button { min-height: auto; padding: 0.45rem 0.6rem; color: var(--tutor-accent); font-size: 0.7rem; }
+.tutor-overview-grid button { min-height: auto; padding: 0.45rem 0.6rem; font-size: 0.7rem; }
 .overview-upcoming { grid-area: upcoming; }
 .overview-next { grid-area: next; display: flex; flex-direction: column; }
 .overview-students { grid-area: students; }

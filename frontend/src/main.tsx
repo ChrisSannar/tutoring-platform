@@ -13,6 +13,7 @@ if (!root) {
 const themeKey = "theme";
 
 function App() {
+  const stylePrototype = /^\/style-prototype\/(10|[1-9])$/.test(window.location.pathname);
   const [tutorWorkspaceVisible, setTutorWorkspaceVisible] = useState(false);
   const [darkMode, setDarkMode] = useState(() =>
     localStorage.getItem(themeKey) === "dark" ||
@@ -26,13 +27,13 @@ function App() {
   }, [darkMode]);
 
   return (
-    <div className={`app-shell${tutorWorkspaceVisible ? " tutor-app-shell" : ""}`}>
+    <div className={`${stylePrototype ? "app-shell style-prototype-shell" : "app-shell"}${tutorWorkspaceVisible ? " tutor-app-shell" : ""}`}>
       <Application
         theme={darkMode ? "dark" : "light"}
         onThemeToggle={() => setDarkMode((enabled) => !enabled)}
         onTutorWorkspaceChange={setTutorWorkspaceVisible}
       />
-      {!tutorWorkspaceVisible && <footer className="app-footer">
+      {!stylePrototype && !tutorWorkspaceVisible && <footer className="app-footer">
         <small>© 2026 Tutoring Platform</small>
         <button
           type="button"

@@ -4,6 +4,7 @@ import { LandingPage } from "../landing/LandingPage";
 import { StudentWorkspace } from "../students/StudentWorkspace";
 import { CheckoutStatus } from "../students/CheckoutStatus";
 import { TutorAuthentication } from "../tutor/TutorAuthentication";
+import { StylePrototype } from "../style-prototype/StylePrototype";
 
 type ApplicationProps = {
   theme: "light" | "dark";
@@ -13,6 +14,11 @@ type ApplicationProps = {
 
 export function Application({ theme, onThemeToggle, onTutorWorkspaceChange }: ApplicationProps) {
   const { pathname } = window.location;
+
+  const stylePrototype = pathname.match(/^\/style-prototype\/(10|[1-9])$/);
+  if (stylePrototype) {
+    return <StylePrototype variant={Number(stylePrototype[1])} />;
+  }
 
   if (pathname.startsWith("/sign-in")) {
     return <LoginAuthentication />;

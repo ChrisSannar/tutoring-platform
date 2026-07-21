@@ -65,9 +65,21 @@ test("Tutor Overview aggregates local operational data", async ({ page }) => {
   await expect(page.locator(".overview-students li")).toHaveText(["Avery Chen", "Eli Thompson", "Maya Chen", "Noah Williams"]);
   await expect(page.locator(".overview-requests")).toContainText("New Inquiries1Pending Login Requests1Pending Refund Requests1");
   await expect(page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ })).toContainText("3");
+  const requestBadge = page.getByLabel("3 open requests");
+  await expect(requestBadge).toHaveCSS("background-color", "rgb(18, 34, 57)");
+  await expect(requestBadge).toHaveCSS("border-top-color", "rgb(255, 255, 255)");
+  await expect(requestBadge).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(requestBadge).toHaveCSS("align-items", "center");
+  await expect(requestBadge).toHaveCSS("justify-items", "center");
 
   await page.getByRole("button", { name: "Open calendar" }).click();
-  await expect(page.getByRole("region", { name: "Students & Calendar" })).toBeVisible();
+  const studentsCalendar = page.getByRole("region", { name: "Students & Calendar" });
+  await expect(studentsCalendar).toBeVisible();
+  await expect(studentsCalendar.getByLabel("Search Students")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  const studentButton = studentsCalendar.getByRole("button", { name: "Sofia Patel", exact: true });
+  await expect(studentButton).toHaveCSS("background-color", "rgb(18, 34, 57)");
+  await expect(studentButton).toHaveCSS("border-top-color", "rgb(18, 34, 57)");
+  await expect(studentButton).toHaveCSS("border-radius", "0px");
   await page.getByRole("button", { name: "Overview" }).click();
   await page.getByRole("button", { name: "3 open", exact: true }).click();
   await expect(page.getByRole("region", { name: "Requests", exact: true })).toBeVisible();
@@ -79,6 +91,7 @@ test("Tutor Overview shows empty states without overflow across themes and width
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/tutor");
 
+  await expect(page.locator(".tutor-workspace")).toHaveCSS("background-image", /radial-gradient/);
   await expect(page.getByText("No more Bookings today.")).toBeVisible();
   await expect(page.getByText("No upcoming Bookings.")).toBeVisible();
   await expect(page.getByText("No open requests.")).toBeVisible();
@@ -93,6 +106,14 @@ test("Tutor Overview shows empty states without overflow across themes and width
 
   await page.getByRole("button", { name: "Dark mode" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Students & Calendar" }).click();
+  await expect(page.getByLabel("Search Students")).toHaveCSS("background-color", "rgb(16, 39, 65)");
+  await page.getByRole("button", { name: "Requests" }).click();
+  const invitationButton = page.getByRole("button", { name: "Create Invitation" });
+  await expect(invitationButton).toHaveCSS("background-color", "rgb(23, 30, 43)");
+  await expect(invitationButton).toHaveCSS("border-top-color", "rgb(255, 255, 255)");
+  await expect(invitationButton).toHaveCSS("color", "rgb(255, 255, 255)");
+  await page.getByRole("button", { name: "Overview" }).click();
   for (const width of [1280, 800, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(page.locator(".tutor-overview-grid")).toBeVisible();
