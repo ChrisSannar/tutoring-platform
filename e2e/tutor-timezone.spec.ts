@@ -65,6 +65,7 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   });
 
   await page.reload();
+  await page.getByRole("button", { name: "Students & Calendar" }).click();
   const calendar = page.getByRole("region", { name: "Weekly Booking Calendar", exact: true });
   const booking = calendar.getByRole("button", { name: /Timezone Student/ });
   await expect(booking).toContainText("11/2/2026, 10:00:00 AM");
@@ -75,6 +76,7 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   });
   const losAngelesPage = await losAngelesContext.newPage();
   await losAngelesPage.goto("/tutor");
+  await losAngelesPage.getByRole("button", { name: "Students & Calendar" }).click();
   await expect(losAngelesPage.getByRole("region", { name: "Weekly Booking Calendar", exact: true }).getByRole("button", { name: /Timezone Student/ })).toContainText("11/2/2026, 10:00:00 AM");
 
   await booking.click();
@@ -84,7 +86,7 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   expect((await (await moved).json()).start_at).toBe("2026-11-09T15:00:00Z");
   await expect(calendar.getByLabel("Move Booking")).toHaveValue("2026-11-09T10:00");
 
-  await page.getByRole("tab", { name: "Availability & Business" }).click();
+  await page.getByRole("button", { name: "Availability & Business" }).click();
   const blockedForm = page.getByRole("form", { name: "Add Blocked Time" });
   await blockedForm.getByLabel("Blocked start").fill("2027-03-15T10:00");
   await blockedForm.getByLabel("Blocked end").fill("2027-03-15T11:00");
@@ -125,6 +127,7 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   expect(updatedOverride.start_at).toBe("2027-03-16T16:00:00Z");
 
   await page.reload();
+  await page.getByRole("button", { name: "Students & Calendar" }).click();
   await booking.click();
   await calendar.getByLabel("Tutor Override").selectOption(createdOverride.id);
   await expect(calendar.getByLabel("Move Booking")).toHaveValue("2027-03-16T12:00");
@@ -140,6 +143,7 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
   await complimentaryPage.getByLabel("Display name").fill("Complimentary Student");
   await complimentaryPage.getByRole("button", { name: "Create Account" }).click();
   await page.reload();
+  await page.getByRole("button", { name: "Students & Calendar" }).click();
   await page.getByRole("button", { name: "Complimentary Student", exact: true }).click();
   const studentDetail = page.getByRole("dialog", { name: "Student Detail" });
   await studentDetail.getByLabel("Complimentary Booking start").fill("2026-11-16T10:00");

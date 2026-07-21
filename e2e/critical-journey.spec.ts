@@ -32,14 +32,14 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
   }, { newNow: now, csrf: tutorCsrf });
   expect(await setClock("2026-07-19T08:00:00Z")).toBe(200);
 
-  await tutorPage.getByRole("tab", { name: "Availability & Business" }).click();
+  await tutorPage.getByRole("button", { name: "Availability & Business" }).click();
   const availability = tutorPage.getByRole("form", { name: "Add Availability" });
   await availability.getByLabel("Weekday").selectOption("2");
   await availability.getByLabel("Start time").fill("09:00");
   await availability.getByLabel("End time").fill("11:00");
   await availability.getByRole("button", { name: "Add Availability" }).click();
 
-  await tutorPage.getByRole("tab", { name: "Requests", exact: true }).click();
+  await tutorPage.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
   const inquiry = tutorPage.getByRole("article", { name: "critical@example.com" });
   await inquiry.getByRole("button", { name: "Create Invitation" }).click();
   const invitationLink = await inquiry.getByLabel("Invitation link").inputValue();
@@ -66,6 +66,7 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
   await expect(page.getByRole("heading", { name: "Upcoming Booking" })).toBeVisible();
 
   await tutorPage.reload();
+  await tutorPage.getByRole("button", { name: "Students & Calendar" }).click();
   const calendar = tutorPage.getByRole("region", { name: "Weekly Booking Calendar", exact: true });
   await expect(calendar.getByRole("button", { name: /Avery Critical —/ })).toBeVisible();
   expect(await setClock("2026-07-22T16:00:01Z")).toBe(200);
@@ -74,6 +75,7 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
   const noteWorkspace = await tutorPage.evaluate((id) => fetch(`/api/tutor/students/${id}/lesson-note-workspace`).then((response) => response.json()), studentId);
   expect(noteWorkspace).toHaveLength(1);
   await tutorPage.reload();
+  await tutorPage.getByRole("button", { name: "Students & Calendar" }).click();
   await tutorPage.getByRole("button", { name: "Avery Critical", exact: true }).click();
   const detail = tutorPage.getByRole("dialog", { name: "Student Detail" });
   await expect(detail.getByLabel("Lesson Note title")).toBeVisible();

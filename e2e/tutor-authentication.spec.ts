@@ -17,40 +17,42 @@ test("Tutor signs in through the development outbox and logs out", async ({
     page.getByRole("heading", { name: "Confirm Tutor sign-in" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Tutor workspace" }),
-  ).toBeVisible();
+  const navigation = page.getByRole("navigation", { name: "Tutor workspace" });
+  await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole("button")).toHaveCount(4);
+  const overviewButton = navigation.getByRole("button", { name: "Overview" });
+  const studentsButton = navigation.getByRole("button", { name: "Students & Calendar" });
+  const availabilityButton = navigation.getByRole("button", { name: "Availability & Business" });
+  const requestsButton = navigation.getByRole("button", { name: /Requests/ });
+  await expect(overviewButton).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("region", { name: "Daily metrics" })).toBeVisible();
 
-  const tabs = page.getByRole("tablist", { name: "Tutor workspace sections" });
-  await expect(tabs.getByRole("tab")).toHaveCount(3);
-  const studentsTab = tabs.getByRole("tab", { name: "Students & Calendar" });
-  const availabilityTab = tabs.getByRole("tab", { name: "Availability & Business" });
-  const requestsTab = tabs.getByRole("tab", { name: "Requests", exact: true });
-  await expect(studentsTab).toHaveAttribute("aria-selected", "true");
-  const studentsPanel = page.getByRole("tabpanel", { name: "Students & Calendar" });
+  await studentsButton.click();
+  const studentsPanel = page.getByRole("region", { name: "Students & Calendar" });
   await expect(studentsPanel.getByRole("heading", { name: "Students" })).toBeVisible();
   await expect(studentsPanel.getByRole("heading", { name: "Weekly Booking Calendar" })).toBeVisible();
 
-  await availabilityTab.click();
-  const availabilityPanel = page.getByRole("tabpanel", { name: "Availability & Business" });
-  await expect(studentsPanel).toBeHidden();
+  await availabilityButton.click();
+  const availabilityPanel = page.getByRole("region", { name: "Availability & Business" });
+  await expect(studentsPanel).toHaveCount(0);
   await expect(availabilityPanel.getByRole("heading", { name: "Availability Calendar" })).toBeVisible();
   await expect(availabilityPanel.getByRole("heading", { name: "Business settings" })).toBeVisible();
 
-  await requestsTab.click();
-  const requestsPanel = page.getByRole("tabpanel", { name: "Requests", exact: true });
-  await expect(availabilityPanel).toBeHidden();
+  await requestsButton.click();
+  const requestsPanel = page.getByRole("region", { name: "Requests", exact: true });
+  await expect(availabilityPanel).toHaveCount(0);
   await expect(requestsPanel.getByRole("heading", { name: "Active Inquiries" })).toBeVisible();
   await expect(requestsPanel.getByRole("heading", { name: "Login Requests" })).toBeVisible();
   await expect(requestsPanel.getByRole("heading", { name: "Refund Requests" })).toBeVisible();
-  await expect(page.getByText("© 2026 Tutoring Platform")).toBeVisible();
+  await expect(page.getByText("© 2026 Tutoring Platform")).toHaveCount(0);
   const themeToggle = page.getByRole("button", { name: "Dark mode" });
   await expect(themeToggle).toHaveAttribute("aria-pressed", "false");
   await themeToggle.click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute("aria-pressed", "true");
 
-  await availabilityTab.click();
+  await availabilityButton.click();
+  await expect(page.getByLabel("Session price (USD)")).toHaveValue("75.00");
   await page.getByLabel("Session price (USD)").fill("82.50");
   await page.getByLabel("Tutor timezone").fill("America/New_York");
   await page
@@ -60,10 +62,8 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(page.getByText("Business settings saved")).toBeVisible();
 
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Tutor workspace" }),
-  ).toBeVisible();
-  await page.getByRole("tab", { name: "Availability & Business" }).click();
+  await expect(page.getByRole("navigation", { name: "Tutor workspace" })).toBeVisible();
+  await page.getByRole("button", { name: "Availability & Business" }).click();
   await expect(page.getByLabel("Session price (USD)")).toHaveValue("82.50");
 
   const availability = page.getByRole("form", { name: "Add Availability" });
@@ -76,7 +76,7 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await monday.getByLabel("Availability weekday").selectOption("1");
   await monday.getByRole("button", { name: "Save Availability" }).click();
   await page.reload();
-  await page.getByRole("tab", { name: "Availability & Business" }).click();
+  await page.getByRole("button", { name: "Availability & Business" }).click();
   const tuesday = page.getByRole("article", { name: "Tuesday Availability" });
   await expect(tuesday).toBeVisible();
   await tuesday.getByRole("button", { name: "Delete Availability" }).click();
@@ -96,6 +96,7 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(
     page.getByRole("heading", { name: "Tutor sign-in" }),
   ).toBeVisible();
+  await expect(page.getByText("© 2026 Tutoring Platform")).toBeVisible();
 });
 
 test("Tutor reviews, archives, and confirms deletion of Inquiries", async ({
@@ -126,7 +127,7 @@ test("Tutor reviews, archives, and confirms deletion of Inquiries", async ({
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await page.getByRole("tab", { name: "Requests", exact: true }).click();
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
   const prospect = page.getByRole("article", {
     name: "queue-prospect@example.com",
@@ -157,7 +158,7 @@ test("Tutor creates a retrievable manual Invitation in one action", async ({ pag
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await page.getByRole("tab", { name: "Requests", exact: true }).click();
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("Invitee@Example.COM");
@@ -179,7 +180,7 @@ test("Invitee opens a personalized setup page without the Private Tutor Note", a
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await page.getByRole("tab", { name: "Requests", exact: true }).click();
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("invitee@example.com");
@@ -202,7 +203,7 @@ test("Tutor corrects an active Invitation email", async ({ page }) => {
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await page.getByRole("tab", { name: "Requests", exact: true }).click();
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("typo@example.com");
   await manualInvitation.getByRole("button", { name: "Create Invitation" }).click();
@@ -224,7 +225,7 @@ test("Tutor regenerates and revokes an active Invitation", async ({ page }) => {
   const outbox = await outboxResponse.json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await page.getByRole("tab", { name: "Requests", exact: true }).click();
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("invitee@example.com");
   await manualInvitation.getByRole("button", { name: "Create Invitation" }).click();

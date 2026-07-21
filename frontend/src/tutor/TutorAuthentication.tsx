@@ -5,13 +5,19 @@ import { TutorWorkspace } from "./TutorWorkspace";
 
 type Screen = "loading" | "sign-in" | "sent" | "confirm" | "workspace";
 
+type TutorAuthenticationProps = {
+  theme: "light" | "dark";
+  onThemeToggle: () => void;
+  onWorkspaceChange: (visible: boolean) => void;
+};
+
 function initialScreen(): Screen {
   if (window.location.pathname === "/tutor/sign-in/confirm") return "confirm";
   if (window.location.pathname === "/tutor") return "loading";
   return "sign-in";
 }
 
-export function TutorAuthentication() {
+export function TutorAuthentication({ theme, onThemeToggle, onWorkspaceChange }: TutorAuthenticationProps) {
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [email, setEmail] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
@@ -27,6 +33,11 @@ export function TutorAuthentication() {
       setScreen("workspace");
     });
   }, [screen]);
+
+  useEffect(() => {
+    onWorkspaceChange(screen === "workspace");
+    return () => onWorkspaceChange(false);
+  }, [onWorkspaceChange, screen]);
 
   async function requestLink(event: FormEvent) {
     event.preventDefault();
@@ -79,7 +90,7 @@ export function TutorAuthentication() {
     );
   }
   if (screen === "workspace") {
-    return <TutorWorkspace csrfToken={csrfToken} onLogOut={logOut} />;
+    return <TutorWorkspace csrfToken={csrfToken} onLogOut={logOut} theme={theme} onThemeToggle={onThemeToggle} />;
   }
   return (
     <main><section className="hero">

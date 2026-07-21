@@ -7,7 +7,7 @@ test("returning Student receives a Tutor-generated Login Link", async ({ browser
   let outbox = await (await page.request.get("/api/development/outbox")).json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await page.getByRole("tab", { name: "Requests", exact: true }).click();
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
   const invitation = page.getByLabel("Manual Invitation");
   await invitation.getByLabel("Invitee email").fill("returning@example.com");
@@ -31,7 +31,7 @@ test("returning Student receives a Tutor-generated Login Link", async ({ browser
   outbox = await (await page.request.get("/api/development/outbox")).json();
   await page.goto(outbox.messages.at(-1).magic_link);
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  await page.getByRole("tab", { name: "Requests", exact: true }).click();
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
   const request = page.getByRole("article").filter({ hasText: "returning@example.com" });
   await request.getByRole("button", { name: "Generate Login Link" }).click();
   const loginLink = await request.getByLabel("Login Link").inputValue();

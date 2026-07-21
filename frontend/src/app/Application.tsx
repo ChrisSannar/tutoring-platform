@@ -5,7 +5,13 @@ import { StudentWorkspace } from "../students/StudentWorkspace";
 import { CheckoutStatus } from "../students/CheckoutStatus";
 import { TutorAuthentication } from "../tutor/TutorAuthentication";
 
-export function Application() {
+type ApplicationProps = {
+  theme: "light" | "dark";
+  onThemeToggle: () => void;
+  onTutorWorkspaceChange: (visible: boolean) => void;
+};
+
+export function Application({ theme, onThemeToggle, onTutorWorkspaceChange }: ApplicationProps) {
   const { pathname } = window.location;
 
   if (pathname.startsWith("/sign-in")) {
@@ -21,7 +27,7 @@ export function Application() {
     return <InviteeSetup />;
   }
   if (pathname.startsWith("/tutor")) {
-    return <TutorAuthentication />;
+    return <TutorAuthentication theme={theme} onThemeToggle={onThemeToggle} onWorkspaceChange={onTutorWorkspaceChange} />;
   }
   return <LandingPage />;
 }
