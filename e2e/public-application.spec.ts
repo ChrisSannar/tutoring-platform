@@ -26,6 +26,17 @@ test("retired Invitation Claim browser route is unavailable", async ({ page }) =
   ).toHaveCount(0);
 });
 
+test("theme selection persists across application pages", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("contentinfo").getByRole("button", { name: "Dark mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  await page.goto("/sign-in");
+  await expect(page.getByRole("contentinfo")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Light mode" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+});
+
 test("Prospect submits an Inquiry without leaving the landing page", async ({
   page,
 }) => {
