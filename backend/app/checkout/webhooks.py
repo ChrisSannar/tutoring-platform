@@ -1,12 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import create_engine, text
 
-
-def aware(value) -> datetime:
-    if isinstance(value, str): value = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+from app.occupancy import utc_aware as aware
 
 
 def record_event(connection, event_id: str, outcome: str, now: datetime) -> None:

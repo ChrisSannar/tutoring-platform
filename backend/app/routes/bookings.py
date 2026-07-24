@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Header, Request, Response
 from starlette.exceptions import HTTPException
 
+from app.availability import derive_bookable_slots
 from app.bookings import booking_calendar_export, cancel_student_booking, create_complimentary_booking, create_student_booking, move_booking, reschedule_student_booking, tutor_calendar, upcoming_booking, update_meeting_details
-from app.http import context_from
-from app.http import require_mutation, require_session
-from app.models import BookingResponse, ComplimentaryBookingInput, MeetingDetailsUpdate, StudentBookingCancellation, StudentBookingInput, StudentBookingMove, TutorBookingMove, TutorCalendarResponse
+from app.http import context_from, require_mutation, require_session
+from app.models import BookingResponse, BookableSlotList, ComplimentaryBookingInput, MeetingDetailsUpdate, StudentBookingCancellation, StudentBookingInput, StudentBookingMove, TutorBookingMove, TutorCalendarResponse
 
 router = APIRouter()
 
@@ -83,3 +83,11 @@ async def calendar_export(booking_id: str, request: Request):
     if exported is None: raise HTTPException(status_code=404)
     filename, body = exported
     return Response(content=body, media_type="text/calendar", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@router.get("/api/student/bookable-slots", response_model=BookableSlotList)
+async def bookable_slots(request: Request):
+    require_session(request, "student")
+    context = context_from(request)
+    timezone_name, slots = derive_bookable_slots(context.settings.database_url, context.now())
+    return {"tutor_timezone": timezone_name, "slots": slots}
