@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
-import type { Student } from "./types";
 import { BookableSlots } from "./BookableSlots";
 import { LessonNotes } from "./LessonNotes";
 
-export function StudentWorkspace({ initialStudent }: { initialStudent?: Student }) {
-  const [student, setStudent] = useState<Student | null>(initialStudent ?? null);
+type Student = {
+  role: "student";
+  email: string;
+  display_name: string;
+};
+
+export function StudentWorkspace() {
+  const [student, setStudent] = useState<Student | null>(null);
   const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {

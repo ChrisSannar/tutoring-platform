@@ -5,18 +5,13 @@ import { TutorWorkspace } from "./TutorWorkspace";
 
 type Screen = "loading" | "sign-in" | "sent" | "confirm" | "workspace";
 
-type TutorAuthenticationProps = {
-  theme: "light" | "dark";
-  onThemeToggle: () => void;
-};
-
 function initialScreen(): Screen {
   if (window.location.pathname === "/tutor/sign-in/confirm") return "confirm";
   if (window.location.pathname === "/tutor") return "loading";
   return "sign-in";
 }
 
-export function TutorAuthentication({ theme, onThemeToggle }: TutorAuthenticationProps) {
+export function TutorAuthentication() {
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [email, setEmail] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
@@ -84,7 +79,7 @@ export function TutorAuthentication({ theme, onThemeToggle }: TutorAuthenticatio
     );
   }
   if (screen === "workspace") {
-    return <TutorWorkspace csrfToken={csrfToken} onLogOut={logOut} theme={theme} onThemeToggle={onThemeToggle} />;
+    return <TutorWorkspace csrfToken={csrfToken} onLogOut={logOut} />;
   }
   return (
     <main><section className="hero">

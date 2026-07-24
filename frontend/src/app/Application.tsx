@@ -5,12 +5,7 @@ import { StudentWorkspace } from "../students/StudentWorkspace";
 import { CheckoutStatus } from "../students/CheckoutStatus";
 import { TutorAuthentication } from "../tutor/TutorAuthentication";
 
-type ApplicationProps = {
-  theme: "light" | "dark";
-  onThemeToggle: () => void;
-};
-
-export function Application({ theme, onThemeToggle }: ApplicationProps) {
+export function Application() {
   const { pathname } = window.location;
 
   if (pathname.startsWith("/sign-in")) {
@@ -26,7 +21,7 @@ export function Application({ theme, onThemeToggle }: ApplicationProps) {
     return <InviteeSetup />;
   }
   if (pathname.startsWith("/tutor")) {
-    return <TutorAuthentication theme={theme} onThemeToggle={onThemeToggle} />;
+    return <TutorAuthentication />;
   }
   return <LandingPage />;
 }

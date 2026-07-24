@@ -26,17 +26,14 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Application
-        theme={darkMode ? "dark" : "light"}
-        onThemeToggle={() => setDarkMode((enabled) => !enabled)}
-      />
+      <Application />
       <footer className="app-footer">
         <small>© 2026 Tutoring Platform</small>
         <button
           type="button"
           aria-pressed={darkMode}
           className="theme-toggle"
-          onClick={() => setDarkMode((enabled) => !enabled)}
+          onClick={() => setDarkMode(document.documentElement.dataset.theme !== "dark")}
         >
           {darkMode ? "Light mode" : "Dark mode"}
         </button>

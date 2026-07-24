@@ -20,14 +20,9 @@ export function StudentList({ csrfToken, tutorTimezone }: { csrfToken: string; t
   const [highlightedId, setHighlightedId] = useState("");
 
   useEffect(() => {
-    function loadStudents() {
-      void fetch("/api/tutor/students")
-        .then((response) => response.json())
-        .then((body) => setStudents(body.students));
-    }
-    loadStudents();
-    window.addEventListener("students-changed", loadStudents);
-    return () => window.removeEventListener("students-changed", loadStudents);
+    void fetch("/api/tutor/students")
+      .then((response) => response.json())
+      .then((body) => setStudents(body.students));
   }, []);
 
   useEffect(() => {

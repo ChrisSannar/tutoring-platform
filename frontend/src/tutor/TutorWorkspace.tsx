@@ -14,8 +14,6 @@ type View = "overview" | "students" | "business" | "requests";
 type TutorWorkspaceProps = {
   csrfToken: string;
   onLogOut: () => void;
-  theme: "light" | "dark";
-  onThemeToggle: () => void;
 };
 
 const views: Array<{ id: View; label: string }> = [
@@ -25,11 +23,28 @@ const views: Array<{ id: View; label: string }> = [
   { id: "requests", label: "Requests" },
 ];
 
-export function TutorWorkspace({ csrfToken, onLogOut, theme, onThemeToggle }: TutorWorkspaceProps) {
+const themeKey = "theme";
+
+export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
   const [tutorTimezone, setTutorTimezone] = useState("");
   const [openRequests, setOpenRequests] = useState(0);
   const [activeView, setActiveView] = useState<View>("overview");
+  const [darkMode, setDarkMode] = useState(() =>
+    localStorage.getItem(themeKey) === "dark" ||
+    (!localStorage.getItem(themeKey) && matchMedia("(prefers-color-scheme: dark)").matches),
+  );
   const rememberTutorTimezone = useCallback((timezone: string) => setTutorTimezone(timezone), []);
+
+  // ponytail: writes theme directly instead of prop drilling; the footer
+  // toggle label can lag one render if theme changes here then the footer
+  // reappears — shared state module if that ever matters.
+  function toggleTheme() {
+    const enabled = !darkMode;
+    setDarkMode(enabled);
+    const theme = enabled ? "dark" : "light";
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(themeKey, theme);
+  }
 
   return <main className="tutor-workspace">
     <aside className="tutor-rail">
@@ -43,7 +58,7 @@ export function TutorWorkspace({ csrfToken, onLogOut, theme, onThemeToggle }: Tu
         >{view.label}{view.id === "requests" && openRequests > 0 ? <span className="request-badge" aria-label={`${openRequests} open requests`}>{openRequests}</span> : null}</button>)}
       </nav>
       <div className="tutor-rail-actions">
-        <button type="button" aria-pressed={theme === "dark"} onClick={onThemeToggle}>{theme === "dark" ? "Light mode" : "Dark mode"}</button>
+        <button type="button" aria-pressed={darkMode} onClick={toggleTheme}>{darkMode ? "Light mode" : "Dark mode"}</button>
         <button type="button" onClick={onLogOut}>Log out</button>
       </div>
     </aside>

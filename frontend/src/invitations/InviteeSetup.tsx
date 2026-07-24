@@ -1,6 +1,8 @@
 import { type FormEvent, useEffect, useState } from "react";
 
-import type { InviteeInvitation } from "./types";
+type InviteeInvitation = {
+  email: string;
+};
 
 function invitationToken() {
   return window.location.pathname.split("/").at(-1) ?? "";
