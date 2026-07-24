@@ -4,7 +4,7 @@ from uuid import uuid4
 from sqlalchemy import create_engine, text
 
 from app.availability import derive_bookable_slots
-from app.bookings.shared import account_id
+from app.bookings import account_id
 from app.checkout.provider import create_provider_checkout
 
 

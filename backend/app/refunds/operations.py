@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from sqlalchemy import create_engine, text
 
-from app.bookings.shared import account_id
+from app.bookings import account_id
 from app.refunds.queries import response
 
 

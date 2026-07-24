@@ -1,3 +1,0 @@
-
-class InvitationClaimConflict(Exception):
-    pass
