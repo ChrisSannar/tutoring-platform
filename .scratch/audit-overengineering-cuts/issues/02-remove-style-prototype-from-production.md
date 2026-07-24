@@ -8,9 +8,16 @@ plus its route glue in `frontend/src/app/Application.tsx` and
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `frontend/src/style-prototype/` deleted
-- [ ] All imports/routes/regex referencing it removed from `Application.tsx`/`main.tsx`
-- [ ] `bun run --cwd frontend build` succeeds; `grep -r style-prototype frontend/dist` finds nothing
-- [ ] One commit
+- [x] `frontend/src/style-prototype/` deleted
+- [x] All imports/routes/regex referencing it removed from `Application.tsx`/`main.tsx`
+- [x] `bun run --cwd frontend build` succeeds; `grep -r style-prototype frontend/dist` finds nothing
+- [x] One commit
+
+## Answer
+
+Deleted `frontend/src/style-prototype/` (still on `archive/style-prototype`) and its
+glue: route + regex in `Application.tsx`, path check/`style-prototype-shell`
+class in `main.tsx`. Build passes; `grep -r style-prototype frontend/dist`
+finds nothing. Commit `4aacab5` (-1,388 lines).

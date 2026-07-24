@@ -15,8 +15,21 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] All four cuts applied; build succeeds
-- [ ] `bun run test:e2e` passes
-- [ ] One commit
+- [x] All four cuts applied; build succeeds
+- [x] `bun run test:e2e` passes
+- [x] One commit
+
+## Answer
+
+1. `students-changed` listener removed from `StudentList.tsx`; fetch inlined.
+2. `students/types.ts` and `invitations/types.ts` inlined into their sole
+   consumers; files deleted.
+3. Unused `initialStudent` prop removed from `StudentWorkspace.tsx`.
+4. `theme`/`onThemeToggle` drilling removed (`main.tsx` → `Application.tsx` →
+   `TutorAuthentication.tsx` → `TutorWorkspace.tsx`); the rail toggle now owns
+   local state and writes `localStorage` + `documentElement.dataset.theme`
+   directly (marked with a `ponytail:` comment). Footer toggle reads
+   `dataset.theme` on click so it stays correct after rail toggles.
+Build + e2e pass. Commit `774e639`.
