@@ -1,69 +1,35 @@
 import asyncio
-from pathlib import Path
 
-from alembic import command
-from alembic.config import Config
-import httpx
 import pytest
-from sqlalchemy import create_engine, text
-
-from app.authentication import issue_magic_link
-from app.config import get_settings
-from app.main import create_app
 
 
-async def student_directory_client(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, role: str = "tutor"
-) -> httpx.AsyncClient:
-    database_url = f"sqlite:///{tmp_path / 'students.sqlite3'}"
-    config = Config("backend/alembic.ini")
-    config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(config, "head")
-    engine = create_engine(database_url)
-    try:
-        with engine.begin() as connection:
-            connection.execute(
-                text(
-                    "INSERT INTO accounts (id, email, role, display_name) VALUES "
-                    "('tutor', 'tutor@example.com', 'tutor', NULL), "
-                    "('student-a', 'avery@example.com', 'student', 'Avery Chen'), "
-                    "('student-b', 'bailey@example.com', 'student', 'Bailey Jones')"
-                )
-            )
-            connection.execute(
-                text(
-                    "INSERT INTO credit_ledger_entries (id, student_account_id, "
-                    "event_type, quantity, reason, idempotency_key, created_at) VALUES "
-                    "('promotion-a', 'student-a', 'promotion_granted', 1, NULL, "
-                    "'promotion-a', CURRENT_TIMESTAMP)"
-                )
-            )
-    finally:
-        engine.dispose()
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    monkeypatch.setenv("TUTORING_APPLICATION_ORIGIN", "http://testserver")
-    get_settings.cache_clear()
-    client = httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=create_app()), base_url="http://testserver"
+async def student_directory_client(testbed, role: str = "tutor"):
+    database_url = testbed.migrated("students")
+    testbed.seed(
+        database_url,
+        "INSERT INTO accounts (id, email, role, display_name) VALUES "
+        "('tutor', 'tutor@example.com', 'tutor', NULL), "
+        "('student-a', 'avery@example.com', 'student', 'Avery Chen'), "
+        "('student-b', 'bailey@example.com', 'student', 'Bailey Jones')",
+        "INSERT INTO credit_ledger_entries (id, student_account_id, "
+        "event_type, quantity, reason, idempotency_key, created_at) VALUES "
+        "('promotion-a', 'student-a', 'promotion_granted', 1, NULL, "
+        "'promotion-a', CURRENT_TIMESTAMP)",
     )
+    client = testbed.client()
     email = "tutor@example.com" if role == "tutor" else "avery@example.com"
-    token = issue_magic_link(database_url, email, 15 * 60)
-    await client.post("/api/auth/magic-links/confirm", json={"token": token})
+    await testbed.sign_in(client, database_url, email)
     return client
 
 
 @pytest.mark.anyio
 async def test_tutor_reads_an_allowlisted_student_detail_with_bounded_summaries(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    testbed,
 ) -> None:
-    client = await student_directory_client(monkeypatch, tmp_path)
-    try:
-        listed = await client.get("/api/tutor/students")
-        detail = await client.get("/api/tutor/students/student-a")
-    finally:
-        await client.aclose()
-        get_settings.cache_clear()
+    client = await student_directory_client(testbed)
+
+    listed = await client.get("/api/tutor/students")
+    detail = await client.get("/api/tutor/students/student-a")
 
     assert listed.json()["students"][0] == {
         "id": "student-a",
@@ -85,24 +51,21 @@ async def test_tutor_reads_an_allowlisted_student_detail_with_bounded_summaries(
 
 @pytest.mark.anyio
 async def test_student_cannot_read_the_tutor_student_directory_or_detail(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    testbed,
 ) -> None:
-    client = await student_directory_client(monkeypatch, tmp_path, role="student-a")
-    try:
-        listed = await client.get("/api/tutor/students")
-        detail = await client.get("/api/tutor/students/student-b")
-        credit_change = await client.post(
-            "/api/tutor/students/student-b/credits",
-            headers={
-                "Origin": "http://testserver",
-                "X-CSRF-Token": client.cookies["tutoring_csrf"],
-                "Idempotency-Key": "student-forbidden",
-            },
-            json={"quantity": 1, "reason": "Not allowed"},
-        )
-    finally:
-        await client.aclose()
-        get_settings.cache_clear()
+    client = await student_directory_client(testbed, role="student-a")
+
+    listed = await client.get("/api/tutor/students")
+    detail = await client.get("/api/tutor/students/student-b")
+    credit_change = await client.post(
+        "/api/tutor/students/student-b/credits",
+        headers={
+            "Origin": "http://testserver",
+            "X-CSRF-Token": client.cookies["tutoring_csrf"],
+            "Idempotency-Key": "student-forbidden",
+        },
+        json={"quantity": 1, "reason": "Not allowed"},
+    )
 
     assert listed.status_code == 401
     assert detail.status_code == 401
@@ -111,35 +74,30 @@ async def test_student_cannot_read_the_tutor_student_directory_or_detail(
 
 
 @pytest.mark.anyio
-async def test_tutor_adjustments_append_an_idempotent_credit_ledger(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    client = await student_directory_client(monkeypatch, tmp_path)
+async def test_tutor_adjustments_append_an_idempotent_credit_ledger(testbed) -> None:
+    client = await student_directory_client(testbed)
     base_headers = {
         "Origin": "http://testserver",
         "X-CSRF-Token": client.cookies["tutoring_csrf"],
     }
-    try:
-        granted = await client.post(
-            "/api/tutor/students/student-a/credits",
-            headers={**base_headers, "Idempotency-Key": "grant-two"},
-            json={"quantity": 2, "reason": "Prepaid tutoring package"},
-        )
-        retried = await client.post(
-            "/api/tutor/students/student-a/credits",
-            headers={**base_headers, "Idempotency-Key": "grant-two"},
-            json={"quantity": 2, "reason": "Prepaid tutoring package"},
-        )
-        deducted = await client.post(
-            "/api/tutor/students/student-a/credits",
-            headers={**base_headers, "Idempotency-Key": "deduct-one"},
-            json={"quantity": -1, "reason": "Correct duplicate grant"},
-        )
-        detail = await client.get("/api/tutor/students/student-a")
-        ledger = await client.get("/api/tutor/students/student-a/credit-ledger")
-    finally:
-        await client.aclose()
-        get_settings.cache_clear()
+
+    granted = await client.post(
+        "/api/tutor/students/student-a/credits",
+        headers={**base_headers, "Idempotency-Key": "grant-two"},
+        json={"quantity": 2, "reason": "Prepaid tutoring package"},
+    )
+    retried = await client.post(
+        "/api/tutor/students/student-a/credits",
+        headers={**base_headers, "Idempotency-Key": "grant-two"},
+        json={"quantity": 2, "reason": "Prepaid tutoring package"},
+    )
+    deducted = await client.post(
+        "/api/tutor/students/student-a/credits",
+        headers={**base_headers, "Idempotency-Key": "deduct-one"},
+        json={"quantity": -1, "reason": "Correct duplicate grant"},
+    )
+    detail = await client.get("/api/tutor/students/student-a")
+    ledger = await client.get("/api/tutor/students/student-a/credit-ledger")
 
     assert granted.status_code == 200
     assert granted.json()["session_credits"] == 2
@@ -161,28 +119,25 @@ async def test_tutor_adjustments_append_an_idempotent_credit_ledger(
 
 @pytest.mark.anyio
 async def test_credit_adjustments_require_reason_and_never_create_negative_value(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    testbed,
 ) -> None:
-    client = await student_directory_client(monkeypatch, tmp_path)
+    client = await student_directory_client(testbed)
     headers = {
         "Origin": "http://testserver",
         "X-CSRF-Token": client.cookies["tutoring_csrf"],
     }
-    try:
-        missing_reason = await client.post(
-            "/api/tutor/students/student-a/credits",
-            headers={**headers, "Idempotency-Key": "missing-reason"},
-            json={"quantity": 1, "reason": "   "},
-        )
-        too_large_deduction = await client.post(
-            "/api/tutor/students/student-a/credits",
-            headers={**headers, "Idempotency-Key": "negative"},
-            json={"quantity": -1, "reason": "No available ordinary credit"},
-        )
-        detail = await client.get("/api/tutor/students/student-a")
-    finally:
-        await client.aclose()
-        get_settings.cache_clear()
+
+    missing_reason = await client.post(
+        "/api/tutor/students/student-a/credits",
+        headers={**headers, "Idempotency-Key": "missing-reason"},
+        json={"quantity": 1, "reason": "   "},
+    )
+    too_large_deduction = await client.post(
+        "/api/tutor/students/student-a/credits",
+        headers={**headers, "Idempotency-Key": "negative"},
+        json={"quantity": -1, "reason": "No available ordinary credit"},
+    )
+    detail = await client.get("/api/tutor/students/student-a")
 
     assert missing_reason.status_code == 422
     assert too_large_deduction.status_code == 409
@@ -190,36 +145,31 @@ async def test_credit_adjustments_require_reason_and_never_create_negative_value
 
 
 @pytest.mark.anyio
-async def test_concurrent_deductions_can_spend_one_credit_only_once(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    client = await student_directory_client(monkeypatch, tmp_path)
+async def test_concurrent_deductions_can_spend_one_credit_only_once(testbed) -> None:
+    client = await student_directory_client(testbed)
     headers = {
         "Origin": "http://testserver",
         "X-CSRF-Token": client.cookies["tutoring_csrf"],
     }
-    try:
-        await client.post(
+
+    await client.post(
+        "/api/tutor/students/student-a/credits",
+        headers={**headers, "Idempotency-Key": "one-credit"},
+        json={"quantity": 1, "reason": "One available credit"},
+    )
+    deductions = await asyncio.gather(
+        client.post(
             "/api/tutor/students/student-a/credits",
-            headers={**headers, "Idempotency-Key": "one-credit"},
-            json={"quantity": 1, "reason": "One available credit"},
-        )
-        deductions = await asyncio.gather(
-            client.post(
-                "/api/tutor/students/student-a/credits",
-                headers={**headers, "Idempotency-Key": "spend-a"},
-                json={"quantity": -1, "reason": "First spend"},
-            ),
-            client.post(
-                "/api/tutor/students/student-a/credits",
-                headers={**headers, "Idempotency-Key": "spend-b"},
-                json={"quantity": -1, "reason": "Competing spend"},
-            ),
-        )
-        detail = await client.get("/api/tutor/students/student-a")
-    finally:
-        await client.aclose()
-        get_settings.cache_clear()
+            headers={**headers, "Idempotency-Key": "spend-a"},
+            json={"quantity": -1, "reason": "First spend"},
+        ),
+        client.post(
+            "/api/tutor/students/student-a/credits",
+            headers={**headers, "Idempotency-Key": "spend-b"},
+            json={"quantity": -1, "reason": "Competing spend"},
+        ),
+    )
+    detail = await client.get("/api/tutor/students/student-a")
 
     assert sorted(response.status_code for response in deductions) == [200, 409]
     assert detail.json()["funding"]["session_credits"] == 0

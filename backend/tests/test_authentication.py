@@ -1,45 +1,17 @@
-import os
-from pathlib import Path
-import subprocess
-import sys
 from urllib.parse import parse_qs, urlparse
 
-from alembic import command
-from alembic.config import Config
 import httpx
 import pytest
 
-from app.config import get_settings
 from app.main import create_app
 
 
-def test_repository_command_bootstraps_exactly_one_tutor(tmp_path: Path) -> None:
-    database_url = f"sqlite:///{tmp_path / 'authentication.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
+def test_repository_command_bootstraps_exactly_one_tutor(testbed) -> None:
+    database_url = testbed.database_url("authentication")
+    testbed.migrate(database_url)
 
-    first = subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "Tutor@Example.com"],
-        cwd="backend",
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    second = subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "other@example.com"],
-        cwd="backend",
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    first = testbed.bootstrap_tutor(database_url, "Tutor@Example.com", check=False)
+    second = testbed.bootstrap_tutor(database_url, "other@example.com", check=False)
 
     assert first.returncode == 0
     assert first.stdout.strip() == "Tutor created for tutor@example.com"
@@ -49,39 +21,18 @@ def test_repository_command_bootstraps_exactly_one_tutor(tmp_path: Path) -> None
 
 @pytest.mark.anyio
 async def test_magic_link_requests_do_not_reveal_whether_an_account_exists(
-    monkeypatch, tmp_path: Path
+    testbed,
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'enumeration.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    get_settings.cache_clear()
+    database_url = testbed.migrated("enumeration", origin=None)
+    testbed.bootstrap_tutor(database_url)
+    client = testbed.client()
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        known = await client.post(
-            "/api/auth/magic-links", json={"email": " Tutor@Example.com "}
-        )
-        unknown = await client.post(
-            "/api/auth/magic-links", json={"email": "unknown@example.com"}
-        )
-    get_settings.cache_clear()
+    known = await client.post(
+        "/api/auth/magic-links", json={"email": " Tutor@Example.com "}
+    )
+    unknown = await client.post(
+        "/api/auth/magic-links", json={"email": "unknown@example.com"}
+    )
 
     assert known.status_code == unknown.status_code == 202
     assert known.json() == unknown.json() == {
@@ -92,37 +43,16 @@ async def test_magic_link_requests_do_not_reveal_whether_an_account_exists(
 
 @pytest.mark.anyio
 async def test_eligible_tutor_receives_a_magic_link_in_the_development_outbox(
-    monkeypatch, tmp_path: Path
+    testbed,
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'outbox.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    get_settings.cache_clear()
+    database_url = testbed.migrated("outbox", origin=None)
+    testbed.bootstrap_tutor(database_url)
+    client = testbed.client()
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        outbox = await client.get("/api/development/outbox")
-    get_settings.cache_clear()
+    await client.post(
+        "/api/auth/magic-links", json={"email": "tutor@example.com"}
+    )
+    outbox = await client.get("/api/development/outbox")
 
     assert outbox.status_code == 200
     messages = outbox.json()["messages"]
@@ -133,45 +63,24 @@ async def test_eligible_tutor_receives_a_magic_link_in_the_development_outbox(
 
 @pytest.mark.anyio
 async def test_opening_a_magic_link_requires_confirmation_without_consuming_it(
-    monkeypatch, tmp_path: Path
+    testbed,
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'confirmation.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    get_settings.cache_clear()
+    database_url = testbed.migrated("confirmation", origin=None)
+    testbed.bootstrap_tutor(database_url)
+    client = testbed.client()
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        outbox = await client.get("/api/development/outbox")
-        magic_link = outbox.json()["messages"][0]["magic_link"]
-        token = parse_qs(urlparse(magic_link).query)["token"][0]
-        first_open = await client.get(
-            "/api/auth/magic-links/confirm", params={"token": token}
-        )
-        second_open = await client.get(
-            "/api/auth/magic-links/confirm", params={"token": token}
-        )
-    get_settings.cache_clear()
+    await client.post(
+        "/api/auth/magic-links", json={"email": "tutor@example.com"}
+    )
+    outbox = await client.get("/api/development/outbox")
+    magic_link = outbox.json()["messages"][0]["magic_link"]
+    token = parse_qs(urlparse(magic_link).query)["token"][0]
+    first_open = await client.get(
+        "/api/auth/magic-links/confirm", params={"token": token}
+    )
+    second_open = await client.get(
+        "/api/auth/magic-links/confirm", params={"token": token}
+    )
 
     assert first_open.status_code == second_open.status_code == 200
     assert first_open.json() == second_open.json() == {
@@ -182,45 +91,24 @@ async def test_opening_a_magic_link_requires_confirmation_without_consuming_it(
 
 @pytest.mark.anyio
 async def test_confirming_a_magic_link_once_creates_a_secure_tutor_session(
-    monkeypatch, tmp_path: Path
+    testbed,
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'session.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    get_settings.cache_clear()
+    database_url = testbed.migrated("session", origin=None)
+    testbed.bootstrap_tutor(database_url)
+    client = testbed.client()
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        outbox = await client.get("/api/development/outbox")
-        magic_link = outbox.json()["messages"][0]["magic_link"]
-        token = parse_qs(urlparse(magic_link).query)["token"][0]
-        confirmed = await client.post(
-            "/api/auth/magic-links/confirm", json={"token": token}
-        )
-        replayed = await client.post(
-            "/api/auth/magic-links/confirm", json={"token": token}
-        )
-    get_settings.cache_clear()
+    await client.post(
+        "/api/auth/magic-links", json={"email": "tutor@example.com"}
+    )
+    outbox = await client.get("/api/development/outbox")
+    magic_link = outbox.json()["messages"][0]["magic_link"]
+    token = parse_qs(urlparse(magic_link).query)["token"][0]
+    confirmed = await client.post(
+        "/api/auth/magic-links/confirm", json={"token": token}
+    )
+    replayed = await client.post(
+        "/api/auth/magic-links/confirm", json={"token": token}
+    )
 
     assert confirmed.status_code == 200
     assert confirmed.json().keys() == {"status", "role", "csrf_token"}
@@ -237,27 +125,17 @@ async def test_confirming_a_magic_link_once_creates_a_secure_tutor_session(
 
 @pytest.mark.anyio
 async def test_magic_link_requests_are_limited_to_five_per_email_per_hour(
-    monkeypatch, tmp_path: Path
+    testbed,
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'email-limit.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    get_settings.cache_clear()
+    testbed.migrated("email-limit", origin=None)
+    client = testbed.client()
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        responses = [
-            await client.post(
-                "/api/auth/magic-links", json={"email": "same@example.com"}
-            )
-            for _ in range(6)
-        ]
-    get_settings.cache_clear()
+    responses = [
+        await client.post(
+            "/api/auth/magic-links", json={"email": "same@example.com"}
+        )
+        for _ in range(6)
+    ]
 
     assert [response.status_code for response in responses] == [
         202,
@@ -271,70 +149,39 @@ async def test_magic_link_requests_are_limited_to_five_per_email_per_hour(
 
 @pytest.mark.anyio
 async def test_magic_link_requests_are_limited_to_twenty_per_ip_per_hour(
-    monkeypatch, tmp_path: Path
+    testbed,
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'ip-limit.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    get_settings.cache_clear()
+    testbed.migrated("ip-limit", origin=None)
+    client = testbed.client()
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        responses = [
-            await client.post(
-                "/api/auth/magic-links", json={"email": f"person-{index}@example.com"}
-            )
-            for index in range(21)
-        ]
-    get_settings.cache_clear()
+    responses = [
+        await client.post(
+            "/api/auth/magic-links", json={"email": f"person-{index}@example.com"}
+        )
+        for index in range(21)
+    ]
 
     assert [response.status_code for response in responses] == [202] * 20 + [429]
 
 
 @pytest.mark.anyio
 async def test_magic_link_expires_after_its_configured_fifteen_minute_window(
-    monkeypatch, tmp_path: Path
+    testbed, monkeypatch
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'expired-link.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
     monkeypatch.setenv("TUTORING_MAGIC_LINK_TTL_SECONDS", "0")
-    get_settings.cache_clear()
+    database_url = testbed.migrated("expired-link", origin=None)
+    testbed.bootstrap_tutor(database_url)
+    client = testbed.client()
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        outbox = await client.get("/api/development/outbox")
-        magic_link = outbox.json()["messages"][0]["magic_link"]
-        token = parse_qs(urlparse(magic_link).query)["token"][0]
-        expired = await client.post(
-            "/api/auth/magic-links/confirm", json={"token": token}
-        )
-    get_settings.cache_clear()
+    await client.post(
+        "/api/auth/magic-links", json={"email": "tutor@example.com"}
+    )
+    outbox = await client.get("/api/development/outbox")
+    magic_link = outbox.json()["messages"][0]["magic_link"]
+    token = parse_qs(urlparse(magic_link).query)["token"][0]
+    expired = await client.post(
+        "/api/auth/magic-links/confirm", json={"token": token}
+    )
 
     assert expired.status_code == 400
     assert expired.json().keys() == {"code", "message", "request_id"}
@@ -342,66 +189,34 @@ async def test_magic_link_expires_after_its_configured_fifteen_minute_window(
 
 @pytest.mark.anyio
 async def test_logout_requires_same_origin_and_csrf_then_revokes_the_session(
-    monkeypatch, tmp_path: Path
+    testbed,
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'logout.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    monkeypatch.setenv("TUTORING_APPLICATION_ORIGIN", "http://testserver")
-    get_settings.cache_clear()
+    database_url = testbed.migrated("logout")
+    testbed.bootstrap_tutor(database_url)
+    client = testbed.client()
+    csrf_token = await testbed.outbox_sign_in(client)
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        outbox = await client.get("/api/development/outbox")
-        token = parse_qs(
-            urlparse(outbox.json()["messages"][0]["magic_link"]).query
-        )["token"][0]
-        authenticated = await client.post(
-            "/api/auth/magic-links/confirm", json={"token": token}
-        )
-        csrf_token = authenticated.json()["csrf_token"]
-        missing_origin = await client.post(
-            "/api/auth/logout", headers={"X-CSRF-Token": csrf_token}
-        )
-        foreign_origin = await client.post(
-            "/api/auth/logout",
-            headers={
-                "Origin": "https://attacker.example",
-                "X-CSRF-Token": csrf_token,
-            },
-        )
-        missing_csrf = await client.post(
-            "/api/auth/logout", headers={"Origin": "http://testserver"}
-        )
-        logged_out = await client.post(
-            "/api/auth/logout",
-            headers={
-                "Origin": "http://testserver",
-                "X-CSRF-Token": csrf_token,
-            },
-        )
-        after_logout = await client.get("/api/tutor/session")
-    get_settings.cache_clear()
+    missing_origin = await client.post(
+        "/api/auth/logout", headers={"X-CSRF-Token": csrf_token}
+    )
+    foreign_origin = await client.post(
+        "/api/auth/logout",
+        headers={
+            "Origin": "https://attacker.example",
+            "X-CSRF-Token": csrf_token,
+        },
+    )
+    missing_csrf = await client.post(
+        "/api/auth/logout", headers={"Origin": "http://testserver"}
+    )
+    logged_out = await client.post(
+        "/api/auth/logout",
+        headers={
+            "Origin": "http://testserver",
+            "X-CSRF-Token": csrf_token,
+        },
+    )
+    after_logout = await client.get("/api/tutor/session")
 
     assert missing_origin.status_code == 403
     assert foreign_origin.status_code == 403
@@ -412,150 +227,74 @@ async def test_logout_requires_same_origin_and_csrf_then_revokes_the_session(
 
 @pytest.mark.anyio
 async def test_tutor_session_expires_after_the_inactivity_limit(
-    monkeypatch, tmp_path: Path
+    testbed, monkeypatch
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'inactive-session.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
     monkeypatch.setenv("TUTORING_SESSION_INACTIVITY_SECONDS", "0")
-    get_settings.cache_clear()
+    database_url = testbed.migrated("inactive-session", origin=None)
+    testbed.bootstrap_tutor(database_url)
+    client = testbed.client()
+    await testbed.outbox_sign_in(client)
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        outbox = await client.get("/api/development/outbox")
-        token = parse_qs(
-            urlparse(outbox.json()["messages"][0]["magic_link"]).query
-        )["token"][0]
-        await client.post("/api/auth/magic-links/confirm", json={"token": token})
-        session = await client.get("/api/tutor/session")
-    get_settings.cache_clear()
+    session = await client.get("/api/tutor/session")
 
     assert session.status_code == 401
 
 
 @pytest.mark.anyio
 async def test_tutor_session_never_survives_its_absolute_limit(
-    monkeypatch, tmp_path: Path
+    testbed, monkeypatch
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'absolute-session.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
     monkeypatch.setenv("TUTORING_SESSION_ABSOLUTE_SECONDS", "0")
-    get_settings.cache_clear()
+    database_url = testbed.migrated("absolute-session", origin=None)
+    testbed.bootstrap_tutor(database_url)
+    client = testbed.client()
+    await testbed.outbox_sign_in(client)
 
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        outbox = await client.get("/api/development/outbox")
-        token = parse_qs(
-            urlparse(outbox.json()["messages"][0]["magic_link"]).query
-        )["token"][0]
-        await client.post("/api/auth/magic-links/confirm", json={"token": token})
-        session = await client.get("/api/tutor/session")
-    get_settings.cache_clear()
+    session = await client.get("/api/tutor/session")
 
     assert session.status_code == 401
 
 
 @pytest.mark.anyio
 async def test_authentication_rotates_and_revokes_the_previous_session(
-    monkeypatch, tmp_path: Path
+    testbed,
 ) -> None:
-    database_url = f"sqlite:///{tmp_path / 'rotation.sqlite3'}"
-    alembic_config = Config("backend/alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
-    environment = {
-        **os.environ,
-        "TUTORING_ENVIRONMENT": "test",
-        "TUTORING_DATABASE_URL": database_url,
-    }
-    subprocess.run(
-        [sys.executable, "-m", "app.bootstrap_tutor", "tutor@example.com"],
-        cwd="backend",
-        env=environment,
-        check=True,
-        capture_output=True,
-    )
-    monkeypatch.setenv("TUTORING_ENVIRONMENT", "test")
-    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
-    get_settings.cache_clear()
-
+    database_url = testbed.migrated("rotation", origin=None)
+    testbed.bootstrap_tutor(database_url)
     app = create_app()
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        first_outbox = await client.get("/api/development/outbox")
-        first_token = parse_qs(
-            urlparse(first_outbox.json()["messages"][-1]["magic_link"]).query
-        )["token"][0]
-        first_auth = await client.post(
-            "/api/auth/magic-links/confirm", json={"token": first_token}
-        )
-        old_session = first_auth.cookies["tutoring_session"]
+    client = httpx.AsyncClient(transport=transport, base_url="http://testserver")
 
-        await client.post(
-            "/api/auth/magic-links", json={"email": "tutor@example.com"}
-        )
-        second_outbox = await client.get("/api/development/outbox")
-        second_token = parse_qs(
-            urlparse(second_outbox.json()["messages"][-1]["magic_link"]).query
-        )["token"][0]
-        second_auth = await client.post(
-            "/api/auth/magic-links/confirm", json={"token": second_token}
-        )
+    await client.post(
+        "/api/auth/magic-links", json={"email": "tutor@example.com"}
+    )
+    first_outbox = await client.get("/api/development/outbox")
+    first_token = parse_qs(
+        urlparse(first_outbox.json()["messages"][-1]["magic_link"]).query
+    )["token"][0]
+    first_auth = await client.post(
+        "/api/auth/magic-links/confirm", json={"token": first_token}
+    )
+    old_session = first_auth.cookies["tutoring_session"]
+
+    await client.post(
+        "/api/auth/magic-links", json={"email": "tutor@example.com"}
+    )
+    second_outbox = await client.get("/api/development/outbox")
+    second_token = parse_qs(
+        urlparse(second_outbox.json()["messages"][-1]["magic_link"]).query
+    )["token"][0]
+    second_auth = await client.post(
+        "/api/auth/magic-links/confirm", json={"token": second_token}
+    )
 
     old_transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(
+    old_client = httpx.AsyncClient(
         transport=old_transport,
         base_url="http://testserver",
         cookies={"tutoring_session": old_session},
-    ) as old_client:
-        old_session_response = await old_client.get("/api/tutor/session")
-    get_settings.cache_clear()
+    )
+    old_session_response = await old_client.get("/api/tutor/session")
 
     assert second_auth.cookies["tutoring_session"] != old_session
     assert old_session_response.status_code == 401
