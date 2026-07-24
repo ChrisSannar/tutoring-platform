@@ -5,7 +5,6 @@ state_directory="$(mktemp -d /tmp/tutoring-platform-e2e.XXXXXX)"
 port_offset=$((RANDOM % 10000))
 export E2E_FRONTEND_PORT=$((30000 + port_offset))
 export E2E_BACKEND_PORT=$((40000 + port_offset))
-export E2E_DEVELOPMENT_FRONTEND_PORT=$((20000 + port_offset))
 
 cleanup() {
   rm -rf "${state_directory}"
@@ -30,10 +29,4 @@ status=0
 PLAYWRIGHT_BROWSERS_PATH=/tmp/tutoring-platform-playwright \
   playwright test --config e2e/playwright.config.ts "$@" || status=$?
 
-cleanup
-if [[ -e "${state_directory}" ]]; then
-  echo "E2E state cleanup failed" >&2
-  exit 1
-fi
-trap - EXIT
 exit "${status}"

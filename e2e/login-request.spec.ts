@@ -1,12 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+import { signInTutor } from "./helpers";
+
 test("returning Student receives a Tutor-generated Login Link", async ({ browser, page }, testInfo) => {
-  await page.goto("/tutor/sign-in");
-  await page.getByLabel("Email address").fill("tutor@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  let outbox = await (await page.request.get("/api/development/outbox")).json();
-  await page.goto(outbox.messages.at(-1).magic_link);
-  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await signInTutor(page);
   await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
   const invitation = page.getByLabel("Manual Invitation");
@@ -25,12 +22,7 @@ test("returning Student receives a Tutor-generated Login Link", async ({ browser
   await publicPage.getByRole("button", { name: "Request Login Link" }).click();
   await expect(publicPage.getByRole("heading", { name: "Login Request received" })).toBeVisible();
 
-  await page.goto("/tutor/sign-in");
-  await page.getByLabel("Email address").fill("tutor@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  outbox = await (await page.request.get("/api/development/outbox")).json();
-  await page.goto(outbox.messages.at(-1).magic_link);
-  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await signInTutor(page);
   await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
   const request = page.getByRole("article").filter({ hasText: "returning@example.com" });
   await request.getByRole("button", { name: "Generate Login Link" }).click();

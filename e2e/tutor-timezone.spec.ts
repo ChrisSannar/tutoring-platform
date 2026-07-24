@@ -1,16 +1,11 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
-async function signInTutor(browser: Browser, origin: string) {
+import { signInTutor } from "./helpers";
+
+async function signInTutorInTokyo(browser: Browser, origin: string) {
   const context = await browser.newContext({ baseURL: origin, timezoneId: "Asia/Tokyo" });
   const page = await context.newPage();
-  await page.goto("/tutor/sign-in");
-  await page.getByLabel("Email address").fill("tutor@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  const outbox = await (await page.request.get("/api/development/outbox")).json();
-  await page.goto(outbox.messages.at(-1).magic_link);
-  const confirmation = page.waitForResponse((response) => response.url().includes("/api/auth/magic-links/confirm"));
-  await page.getByRole("button", { name: "Confirm sign-in" }).click();
-  const csrfToken = (await (await confirmation).json()).csrf_token as string;
+  const csrfToken = await signInTutor(page);
   return { context, page, csrfToken };
 }
 
@@ -29,7 +24,7 @@ async function tutorMutation<T>(page: Page, csrfToken: string, path: string, bod
 test("Tutor scheduling uses the Tutor Timezone in a browser with a different timezone", async ({ browser }, testInfo) => {
   const origin = testInfo.project.use.baseURL;
   if (!origin) throw new Error("Playwright baseURL must be configured");
-  const { context, page, csrfToken } = await signInTutor(browser, origin);
+  const { context, page, csrfToken } = await signInTutorInTokyo(browser, origin);
 
   await page.evaluate(async (csrfToken) => {
     const response = await fetch("/api/tutor/settings", {

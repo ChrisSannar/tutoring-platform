@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { signInTutor } from "./helpers";
+
 test("Tutor signs in through the development outbox and logs out", async ({
   page,
 }) => {
@@ -120,13 +122,7 @@ test("Tutor reviews, archives, and confirms deletion of Inquiries", async ({
       message: "Please remove this request.",
     },
   });
-  await page.goto("/tutor/sign-in");
-  await page.getByLabel("Email address").fill("tutor@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  const outboxResponse = await page.request.get("/api/development/outbox");
-  const outbox = await outboxResponse.json();
-  await page.goto(outbox.messages.at(-1).magic_link);
-  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await signInTutor(page);
   await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
   const prospect = page.getByRole("article", {
@@ -150,14 +146,7 @@ test("Tutor reviews, archives, and confirms deletion of Inquiries", async ({
 });
 
 test("Tutor creates a retrievable manual Invitation in one action", async ({ page }) => {
-  await page.goto("/tutor/sign-in");
-  await page.getByLabel("Email address").fill("tutor@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-
-  const outboxResponse = await page.request.get("/api/development/outbox");
-  const outbox = await outboxResponse.json();
-  await page.goto(outbox.messages.at(-1).magic_link);
-  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await signInTutor(page);
   await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
   const manualInvitation = page.getByLabel("Manual Invitation");
@@ -173,13 +162,7 @@ test("Tutor creates a retrievable manual Invitation in one action", async ({ pag
 test("Invitee opens a personalized setup page without the Private Tutor Note", async ({
   page,
 }) => {
-  await page.goto("/tutor/sign-in");
-  await page.getByLabel("Email address").fill("tutor@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  const outboxResponse = await page.request.get("/api/development/outbox");
-  const outbox = await outboxResponse.json();
-  await page.goto(outbox.messages.at(-1).magic_link);
-  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await signInTutor(page);
   await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
   const manualInvitation = page.getByLabel("Manual Invitation");
@@ -196,13 +179,7 @@ test("Invitee opens a personalized setup page without the Private Tutor Note", a
 });
 
 test("Tutor corrects an active Invitation email", async ({ page }) => {
-  await page.goto("/tutor/sign-in");
-  await page.getByLabel("Email address").fill("tutor@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  const outboxResponse = await page.request.get("/api/development/outbox");
-  const outbox = await outboxResponse.json();
-  await page.goto(outbox.messages.at(-1).magic_link);
-  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await signInTutor(page);
   await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("typo@example.com");
@@ -218,13 +195,7 @@ test("Tutor corrects an active Invitation email", async ({ page }) => {
 });
 
 test("Tutor regenerates and revokes an active Invitation", async ({ page }) => {
-  await page.goto("/tutor/sign-in");
-  await page.getByLabel("Email address").fill("tutor@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  const outboxResponse = await page.request.get("/api/development/outbox");
-  const outbox = await outboxResponse.json();
-  await page.goto(outbox.messages.at(-1).magic_link);
-  await page.getByRole("button", { name: "Confirm sign-in" }).click();
+  await signInTutor(page);
   await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
   const manualInvitation = page.getByLabel("Manual Invitation");
   await manualInvitation.getByLabel("Invitee email").fill("invitee@example.com");

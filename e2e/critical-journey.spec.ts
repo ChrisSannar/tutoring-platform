@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { signInTutor } from "./helpers";
+
 test("Inquiry becomes a promotion-funded lesson with a published note", async ({ browser, page, playwright }, testInfo) => {
   test.setTimeout(60_000);
   const origin = testInfo.project.use.baseURL;
@@ -14,14 +16,7 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
 
   const tutorContext = await browser.newContext({ baseURL: origin });
   const tutorPage = await tutorContext.newPage();
-  await tutorPage.goto("/tutor/sign-in");
-  await tutorPage.getByLabel("Email address").fill("tutor@example.com");
-  await tutorPage.getByRole("button", { name: "Email me a sign-in link" }).click();
-  const outbox = await (await tutorPage.request.get("/api/development/outbox")).json();
-  await tutorPage.goto(outbox.messages.at(-1).magic_link);
-  const confirmation = tutorPage.waitForResponse((response) => response.url().includes("/api/auth/magic-links/confirm"));
-  await tutorPage.getByRole("button", { name: "Confirm sign-in" }).click();
-  const tutorCsrf = (await (await confirmation).json()).csrf_token;
+  const tutorCsrf = await signInTutor(tutorPage);
   const setClock = (now: string) => tutorPage.evaluate(async ({ newNow, csrf }) => {
     const response = await fetch("/api/testing/clock", {
       method: "POST",
