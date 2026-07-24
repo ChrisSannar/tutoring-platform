@@ -7,9 +7,9 @@ from app.authentication import (
     issue_magic_link,
     magic_link_is_active,
 )
-from app.http.context import context_from, set_session_cookies
+from app.http import context_from, set_session_cookies
 from app.login_requests import queue_student_login_request
-from app.models.auth import (
+from app.models import (
     MagicLinkAcceptedResponse,
     MagicLinkConfirmation,
     MagicLinkRequest,

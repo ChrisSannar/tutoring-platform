@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request, Response
 from starlette.exceptions import HTTPException
 
-from app.http.context import context_from
-from app.http.security import require_mutation, require_session
+from app.http import context_from
+from app.http import require_mutation, require_session
 from app.inquiries import archive_inquiry, delete_inquiry, list_active_inquiries
-from app.models.inquiries import InquiryDeletionConfirmation, TutorInquiryListResponse
+from app.models import InquiryDeletionConfirmation, TutorInquiryListResponse
 
 router = APIRouter()
 

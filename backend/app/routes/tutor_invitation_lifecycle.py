@@ -1,19 +1,19 @@
 from fastapi import APIRouter, Request
 from starlette.exceptions import HTTPException
 
-from app.http.context import context_from
+from app.http import context_from
 from app.invitations import (
     correct_invitation_email,
     regenerate_invitation,
     revoke_invitation,
 )
-from app.models.invitations import (
+from app.models import (
     CorrectedInvitationResponse,
     InvitationEmailCorrectionRequest,
     InvitationLinkChangeResponse,
     RevokedInvitationResponse,
 )
-from app.http.security import require_mutation
+from app.http import require_mutation
 
 router = APIRouter()
 

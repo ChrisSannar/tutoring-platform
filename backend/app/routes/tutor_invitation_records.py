@@ -1,17 +1,17 @@
 from fastapi import APIRouter, Request
 from starlette.exceptions import HTTPException
 
-from app.http.context import context_from
+from app.http import context_from
 from app.invitations import (
     create_manual_invitation,
     get_tutor_invitation,
 )
-from app.models.invitations import (
+from app.models import (
     CreatedInvitationResponse,
     ManualInvitationRequest,
     TutorInvitationRecordResponse,
 )
-from app.http.security import require_mutation, require_session
+from app.http import require_mutation, require_session
 
 router = APIRouter()
 

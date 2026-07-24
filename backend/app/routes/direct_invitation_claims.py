@@ -2,10 +2,10 @@ from fastapi import APIRouter, Request, Response
 from starlette.exceptions import HTTPException
 
 from app.funding import student_funding_summary
-from app.http.context import context_from, set_session_cookies
-from app.http.security import require_session
+from app.http import context_from, set_session_cookies
+from app.http import require_session
 from app.invitations import InvitationClaimConflict, claim_direct_invitation
-from app.models.invitation_claims import (
+from app.models import (
     ClaimedInvitationResponse,
     DirectInvitationClaimRequest,
     StudentFundingResponse,

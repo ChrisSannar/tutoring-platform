@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request
 from starlette.exceptions import HTTPException
 
-from app.http.context import context_from
-from app.models.pilot_data import PilotDataDeletionRequest, PilotDataDeletionResponse
+from app.http import context_from
+from app.models import PilotDataDeletionRequest, PilotDataDeletionResponse
 from app.pilot_data import delete_student_pilot_data
-from app.http.security import require_mutation
+from app.http import require_mutation
 
 router = APIRouter()
 

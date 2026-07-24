@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Request
 
 from app.availability import derive_bookable_slots
-from app.http.context import context_from
-from app.http.security import require_session
-from app.models.availability import BookableSlotList
+from app.http import context_from
+from app.http import require_session
+from app.models import BookableSlotList
 
 router = APIRouter()
 

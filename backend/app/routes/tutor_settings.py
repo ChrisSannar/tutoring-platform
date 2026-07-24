@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Request
 
-from app.http.context import context_from
-from app.http.security import require_mutation, require_session
-from app.models.tutor_settings import TutorSettingsResponse, TutorSettingsUpdate
+from app.http import context_from
+from app.http import require_mutation, require_session
+from app.models import TutorSettingsResponse, TutorSettingsUpdate
 from app.tutor_settings import get_tutor_settings, update_tutor_settings
 
 router = APIRouter()

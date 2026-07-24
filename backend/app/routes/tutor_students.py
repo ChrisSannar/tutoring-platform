@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Request
 from starlette.exceptions import HTTPException
 
-from app.http.context import context_from
-from app.http.security import require_session
-from app.models.students import TutorStudentDetailResponse, TutorStudentListResponse
+from app.http import context_from
+from app.http import require_session
+from app.models import TutorStudentDetailResponse, TutorStudentListResponse
 from app.students import get_student_detail, list_students
 
 router = APIRouter()

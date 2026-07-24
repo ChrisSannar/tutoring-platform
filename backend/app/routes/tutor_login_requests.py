@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request
 from starlette.exceptions import HTTPException
 
-from app.http.context import context_from
-from app.http.security import require_mutation, require_session
+from app.http import context_from
+from app.http import require_mutation, require_session
 from app.login_requests import active_login_requests, dismiss_login_request, generate_login_link
-from app.models.login_requests import GeneratedLoginLinkResponse, LoginRequestListResponse
+from app.models import GeneratedLoginLinkResponse, LoginRequestListResponse
 
 router = APIRouter(prefix="/api/tutor/login-requests")
 

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.application_context import ApplicationContext
-from app.http.errors import install_error_handling
+from app.http import install_error_handling
 from app.routes.auth import router as auth_router
 from app.routes.direct_invitation_claims import router as direct_claim_router
 from app.routes.inquiries import router as inquiry_router

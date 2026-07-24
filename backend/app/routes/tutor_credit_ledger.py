@@ -2,9 +2,9 @@ from fastapi import APIRouter, Header, Request
 from starlette.exceptions import HTTPException
 
 from app.funding import CreditAdjustmentConflict, adjust_session_credits, list_credit_ledger
-from app.http.context import context_from
-from app.http.security import require_mutation, require_session
-from app.models.funding import (
+from app.http import context_from
+from app.http import require_mutation, require_session
+from app.models import (
     CreditAdjustmentRequest,
     CreditBalanceResponse,
     CreditLedgerResponse,

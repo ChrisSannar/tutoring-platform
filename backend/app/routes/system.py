@@ -4,7 +4,7 @@ from starlette.responses import JSONResponse
 from typing import Literal
 
 from app.database import readiness_status
-from app.http.context import context_from
+from app.http import context_from
 
 router = APIRouter()
 

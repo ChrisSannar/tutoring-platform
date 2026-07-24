@@ -2,9 +2,9 @@ from fastapi import APIRouter, Request
 from starlette.exceptions import HTTPException
 
 from app.availability import create_blocked_time, create_override, create_window, delete_blocked_time, delete_override, delete_window, list_blocked_times, list_overrides, list_windows, update_blocked_time, update_override, update_window
-from app.http.context import context_from
-from app.http.security import require_mutation, require_session
-from app.models.availability import AvailabilityWindowInput, AvailabilityWindowResponse, BlockedTimeInput, BlockedTimeResponse, TutorOverrideInput, TutorOverrideResponse
+from app.http import context_from
+from app.http import require_mutation, require_session
+from app.models import AvailabilityWindowInput, AvailabilityWindowResponse, BlockedTimeInput, BlockedTimeResponse, TutorOverrideInput, TutorOverrideResponse
 
 router = APIRouter(prefix="/api/tutor")
 

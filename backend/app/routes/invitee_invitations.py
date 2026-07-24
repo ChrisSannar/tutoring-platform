@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Request
 from starlette.exceptions import HTTPException
 
-from app.http.context import context_from
+from app.http import context_from
 from app.invitations import get_active_invitation_by_token
-from app.models.invitations import InviteeInvitationResponse
+from app.models import InviteeInvitationResponse
 
 router = APIRouter()
 

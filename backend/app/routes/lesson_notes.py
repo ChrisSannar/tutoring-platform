@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request, Response
 from starlette.exceptions import HTTPException
 
-from app.http.context import context_from
-from app.http.security import require_mutation, require_session
+from app.http import context_from
+from app.http import require_mutation, require_session
 from app.lesson_notes import delete_note, download_note, publish_note, save_note, shared_notes, tutor_note_workspace, tutor_student_notes
-from app.models.lesson_notes import ConfirmedLessonNoteDeletion, LessonNoteInput, LessonNoteResponse, SharedLessonNoteList, TutorLessonNoteWorkspaceItem
+from app.models import ConfirmedLessonNoteDeletion, LessonNoteInput, LessonNoteResponse, SharedLessonNoteList, TutorLessonNoteWorkspaceItem
 
 router = APIRouter()
 

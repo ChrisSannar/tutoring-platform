@@ -2,8 +2,8 @@ from fastapi import APIRouter, Request, Response
 from starlette.exceptions import HTTPException
 
 from app.authentication import active_session, revoke_session, student_session_details
-from app.http.context import context_from
-from app.http.security import require_session
+from app.http import context_from
+from app.http import require_session
 
 router = APIRouter()
 
