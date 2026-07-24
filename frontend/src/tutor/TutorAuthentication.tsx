@@ -8,7 +8,6 @@ type Screen = "loading" | "sign-in" | "sent" | "confirm" | "workspace";
 type TutorAuthenticationProps = {
   theme: "light" | "dark";
   onThemeToggle: () => void;
-  onWorkspaceChange: (visible: boolean) => void;
 };
 
 function initialScreen(): Screen {
@@ -17,7 +16,7 @@ function initialScreen(): Screen {
   return "sign-in";
 }
 
-export function TutorAuthentication({ theme, onThemeToggle, onWorkspaceChange }: TutorAuthenticationProps) {
+export function TutorAuthentication({ theme, onThemeToggle }: TutorAuthenticationProps) {
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [email, setEmail] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
@@ -33,11 +32,6 @@ export function TutorAuthentication({ theme, onThemeToggle, onWorkspaceChange }:
       setScreen("workspace");
     });
   }, [screen]);
-
-  useEffect(() => {
-    onWorkspaceChange(screen === "workspace");
-    return () => onWorkspaceChange(false);
-  }, [onWorkspaceChange, screen]);
 
   async function requestLink(event: FormEvent) {
     event.preventDefault();

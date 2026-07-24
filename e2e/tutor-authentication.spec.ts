@@ -44,7 +44,7 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(requestsPanel.getByRole("heading", { name: "Active Inquiries" })).toBeVisible();
   await expect(requestsPanel.getByRole("heading", { name: "Login Requests" })).toBeVisible();
   await expect(requestsPanel.getByRole("heading", { name: "Refund Requests" })).toBeVisible();
-  await expect(page.getByText("© 2026 Tutoring Platform")).toHaveCount(0);
+  await expect(page.getByText("© 2026 Tutoring Platform")).toBeHidden();
   const themeToggle = page.getByRole("button", { name: "Dark mode" });
   await expect(themeToggle).toHaveAttribute("aria-pressed", "false");
   await themeToggle.click();

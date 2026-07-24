@@ -8,10 +8,9 @@ import { TutorAuthentication } from "../tutor/TutorAuthentication";
 type ApplicationProps = {
   theme: "light" | "dark";
   onThemeToggle: () => void;
-  onTutorWorkspaceChange: (visible: boolean) => void;
 };
 
-export function Application({ theme, onThemeToggle, onTutorWorkspaceChange }: ApplicationProps) {
+export function Application({ theme, onThemeToggle }: ApplicationProps) {
   const { pathname } = window.location;
 
   if (pathname.startsWith("/sign-in")) {
@@ -27,7 +26,7 @@ export function Application({ theme, onThemeToggle, onTutorWorkspaceChange }: Ap
     return <InviteeSetup />;
   }
   if (pathname.startsWith("/tutor")) {
-    return <TutorAuthentication theme={theme} onThemeToggle={onThemeToggle} onWorkspaceChange={onTutorWorkspaceChange} />;
+    return <TutorAuthentication theme={theme} onThemeToggle={onThemeToggle} />;
   }
   return <LandingPage />;
 }

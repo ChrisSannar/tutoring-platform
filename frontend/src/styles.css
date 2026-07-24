@@ -363,7 +363,9 @@ dialog::backdrop {
 }
 
 /* Tutor control room */
-.tutor-app-shell { display: block; }
+.app-shell:has(.tutor-workspace) { display: block; }
+
+.app-shell:has(.tutor-workspace) .app-footer { display: none; }
 
 .tutor-workspace {
   --tutor-bg: #eef3f9;
