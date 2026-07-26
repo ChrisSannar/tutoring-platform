@@ -1,21 +1,18 @@
 import sys
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.authentication import issue_magic_link
 from app.config import get_settings
+from app.database import db_connection
 
 
 def main() -> int:
     settings = get_settings()
-    engine = create_engine(settings.database_url)
-    try:
-        with engine.connect() as connection:
-            row = connection.execute(
-                text("SELECT email FROM accounts WHERE role = 'tutor' LIMIT 1")
-            ).mappings().first()
-    finally:
-        engine.dispose()
+    with db_connection(settings.database_url, mode="read") as connection:
+        row = connection.execute(
+            text("SELECT email FROM accounts WHERE role = 'tutor' LIMIT 1")
+        ).mappings().first()
     if row is None:
         print("Tutor account is missing", file=sys.stderr)
         return 1

@@ -1,8 +1,9 @@
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
+from app.database import db_connection
 from app.occupancy import occupied_intervals, utc_aware
 
 def local_datetime(day: date, value: str, zone: ZoneInfo) -> datetime:
@@ -56,11 +57,7 @@ def derive_bookable_slots(
 ) -> tuple[str, list[dict]]:
     if connection is not None:
         return _derive_bookable_slots(connection, now, exclude_booking_id)
-    engine = create_engine(database_url)
-    try:
-        with engine.connect() as opened_connection:
-            return _derive_bookable_slots(
-                opened_connection, now, exclude_booking_id
-            )
-    finally:
-        engine.dispose()
+    with db_connection(database_url, mode="read") as opened_connection:
+        return _derive_bookable_slots(
+            opened_connection, now, exclude_booking_id
+        )
