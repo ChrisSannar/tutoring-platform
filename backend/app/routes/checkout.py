@@ -8,6 +8,7 @@ from app.checkout.provider import valid_webhook_signature
 from app.http import context_from, require_mutation, require_session
 from app.models import CheckoutInput, CheckoutResponse, RefundRequestResponse, StudentRefundList, TutorRefundList
 from app.refunds import approve_refund, create_refund_request, decline_refund, list_student_refunds, list_tutor_refunds
+from app.refunds.provider import refund_payment
 
 router = APIRouter()
 
@@ -83,7 +84,20 @@ async def decline(request_id: str, request: Request, idempotency_key: str = Head
 async def approve(request_id: str, request: Request, idempotency_key: str = Header(min_length=1, max_length=200)):
     require_mutation(request, "tutor")
     context = context_from(request)
-    outcome, result = approve_refund(context.settings.database_url, request_id, context.refund_payment, context.now())
+    settings = context.settings
+    outcome, result = approve_refund(
+        settings.database_url,
+        request_id,
+        lambda payment, amount, currency, key: refund_payment(
+            settings.stripe_provider_mode,
+            settings.stripe_secret_key.get_secret_value(),
+            payment,
+            amount,
+            currency,
+            key,
+        ),
+        context.now(),
+    )
     if outcome == "provider_failure": raise HTTPException(status_code=502)
     if result is None: raise HTTPException(status_code=409)
     return result

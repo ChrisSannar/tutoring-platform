@@ -55,7 +55,7 @@ async def refund_clients(testbed):
     other, other_csrf = await testbed.authenticate(
         transport, database_url, "other@example.com"
     )
-    return app, tutor, tutor_csrf, student, student_csrf, other, other_csrf, database_url
+    return tutor, tutor_csrf, student, student_csrf, other, other_csrf, database_url
 
 
 def mutation(csrf: str, key: str) -> dict[str, str]:
@@ -85,7 +85,7 @@ def test_stripe_refund_adapter_uses_full_server_amount_and_stable_key(monkeypatc
 
 @pytest.mark.anyio
 async def test_refund_request_eligibility_ownership_freeze_and_decline(testbed) -> None:
-    _, tutor, tutor_csrf, student, student_csrf, other, other_csrf, database_url = await refund_clients(testbed)
+    tutor, tutor_csrf, student, student_csrf, other, other_csrf, database_url = await refund_clients(testbed)
 
     wrong_owner = await other.post("/api/student/bookings/paid-one/refund-request", headers=mutation(other_csrf, "wrong"))
     wrong_role = await tutor.post("/api/student/bookings/paid-one/refund-request", headers=mutation(tutor_csrf, "wrong-role"))
@@ -123,16 +123,16 @@ async def test_refund_request_eligibility_ownership_freeze_and_decline(testbed) 
 
 
 @pytest.mark.anyio
-async def test_full_refund_failure_retry_and_concurrent_review_are_exactly_once(testbed) -> None:
-    app, tutor, tutor_csrf, student, student_csrf, _, _, database_url = await refund_clients(testbed)
+async def test_full_refund_failure_retry_and_concurrent_review_are_exactly_once(testbed, monkeypatch) -> None:
+    tutor, tutor_csrf, student, student_csrf, _, _, database_url = await refund_clients(testbed)
     calls = []
 
-    def fail_once(payment_id: str, amount_cents: int, currency: str, key: str):
+    def fail_once(mode: str, secret: str, payment_id: str, amount_cents: int, currency: str, key: str):
         calls.append((payment_id, amount_cents, currency, key))
         if len(calls) == 1: return False, None
         return True, "re_full_one" if payment_id == "pi_paid_one" else "re_full_two"
 
-    app.state.context.refund_payment = fail_once
+    monkeypatch.setattr("app.routes.checkout.refund_payment", fail_once)
 
     created = await student.post("/api/student/bookings/paid-one/refund-request", headers=mutation(student_csrf, "request-approve"))
     failed = await tutor.post(
