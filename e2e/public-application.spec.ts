@@ -58,6 +58,54 @@ test("Prospect submits an Inquiry without leaving the landing page", async ({
   await expect(page).toHaveURL(/\/$/);
 });
 
+test("Landing and Inquiry keep Constellation hierarchy without overflow", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const landing = page.locator(".landing-hero");
+  const requestButton = page.getByRole("button", { name: "Request tutoring" });
+  await expect(landing).toHaveCSS("background-color", "rgba(250, 252, 255, 0.94)");
+  await expect(landing).toHaveCSS("border-radius", "0px");
+  await requestButton.focus();
+  await expect(requestButton).toHaveCSS("outline-color", "rgb(20, 108, 255)");
+  await requestButton.click();
+
+  const dialog = page.getByRole("dialog", { name: "Request tutoring" });
+  await expect(dialog).toHaveCSS("background-color", "rgba(250, 252, 255, 0.94)");
+  await expect(dialog).toHaveCSS("border-radius", "0px");
+  await expect(page.getByLabel("Email address")).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
+  for (const width of [390, 800, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  }
+
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Dark mode" }).click();
+  await expect(landing).toHaveCSS("background-color", "rgba(11, 25, 43, 0.94)");
+  await requestButton.click();
+  await expect(dialog).toHaveCSS("background-color", "rgba(11, 25, 43, 0.94)");
+  await expect(page.getByLabel("Email address")).toHaveCSS(
+    "background-color",
+    "rgb(16, 39, 65)",
+  );
+  for (const width of [1280, 800, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  }
+});
+
 test("production preview applies the browser security baseline", async ({ page }) => {
   const response = await page.goto("/");
 
