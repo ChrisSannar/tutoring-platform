@@ -1,23 +1,11 @@
-# Product boundaries
+# Boundaries
 
-## Required direct-Booking slice
-
-`Inquiry -> Invitation -> Create Account -> funded Booking -> Tutor operation -> Shared Lesson Note`
-
-The application is for one Tutor, not a marketplace. Access is invite-only. The server
-owns identity, availability, funding, Booking state, payment/refund evidence, and note
-publication. Student-visible occupancy never reveals another Student or private Tutor
-calendar detail.
-
-## External-service boundary
-
-- Email and Invitation/Login Link delivery remain manual.
-- Calendar integration is a downloadable `.ics` snapshot.
-- Stripe hosts card entry; verified signed webhooks, not redirects, create paid Bookings.
-- Tests replace Stripe with deterministic fakes and require no external network.
-
-## Historical pilot boundary
-
-Session Request was the original pilot scheduling proposal. It is superseded and is not
-a product concept or API. Migration `20260717_0017` explicitly discards its disposable
-rows without inferring payment or confirmation.
+- One application and database own identity, Invitations, availability, Session
+  Credits, Bookings, Login Requests, and lesson notes.
+- Invitation and Login Links are manually delivered; the application sends no email.
+- Login Link inspection is scanner-safe and confirmation is an explicit POST.
+- Session Credits are non-currency entitlements recorded in an immutable Credit Ledger.
+- Bookings are either `session_credit` or `complimentary`.
+- Calendar Export is a static `.ics` snapshot.
+- There is no purchasing, payment tracking, notification delivery, or calendar sync.
+- Pilot data is disposable and the squashed initial migration is authoritative.

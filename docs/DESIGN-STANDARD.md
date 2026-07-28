@@ -8,7 +8,7 @@ Prototype reference: `/style-prototype/10`
 
 Constellation is the visual standard across the application. Application-wide
 adoption is authorized through the rollout issues for Landing, Student, Invitation,
-authentication, and checkout surfaces.
+authentication, and Booking surfaces.
 
 Adopt it one surface at a time while preserving each surface's behavior, semantics,
 and information hierarchy. Apply the standard through shared theme tokens and scoped
@@ -57,7 +57,7 @@ Full workspace surfaces use a subtle dotted field:
 - Major dots repeat every `140px` using `line-strong` at approximately 55% strength.
 - Dots remain visible behind surfaces without competing with text or controls.
 - Full workspaces use the dotted field.
-- Focused access and payment pages use the quieter token-compatible background without
+- Focused access pages use the quieter token-compatible background without
   dots while keeping the same background and surface hierarchy.
 
 ## Typography

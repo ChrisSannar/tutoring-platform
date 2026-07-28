@@ -1,5 +1,12 @@
 # Fulfill paid Bookings from verified Stripe webhooks
 
+Status: Deprecated by the Credit-Only Booking MVP (2026-07-28).
+
+This decision is retained as history only. The application no longer supports paid
+Bookings, Stripe Checkout, Slot Holds, payment evidence, or Refund Requests.
+
+## Historical decision
+
 The application remains authoritative for Bookable Slots and paid Bookings. Starting
 Stripe Checkout atomically snapshots the server-owned USD price and creates a 30-minute
 Slot Hold. The hold removes the interval from every Student's choices while payment is
