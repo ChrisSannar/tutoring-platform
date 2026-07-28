@@ -428,6 +428,119 @@ dialog::backdrop {
   }
 }
 
+/* Student workspace */
+.student-workspace {
+  min-width: 0;
+  place-items: stretch;
+  padding: 1rem;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--line-strong) 55%, transparent) 1px, transparent 1.2px),
+    radial-gradient(circle, color-mix(in srgb, var(--line) 45%, transparent) 0.7px, transparent 0.9px);
+  background-size: 140px 140px, 28px 28px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.student-workspace-shell {
+  width: min(76rem, 100%);
+  margin: 0 auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+.student-workspace-shell > :not(.student-dashboard-grid) {
+  padding-right: clamp(1.25rem, 4vw, 3rem);
+  padding-left: clamp(1.25rem, 4vw, 3rem);
+}
+
+.student-workspace-shell > .eyebrow {
+  margin: 0;
+  padding-top: clamp(2rem, 6vw, 4.5rem);
+}
+
+.student-workspace-shell > h1 {
+  max-width: none;
+  padding-top: 0.75rem;
+  font-size: clamp(3rem, 7vw, 6rem);
+}
+
+.student-workspace-shell > p:not(.eyebrow, .intro) {
+  margin: 1rem 0 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.student-workspace-shell > .intro {
+  max-width: 46rem;
+  margin: 1.5rem 0 0;
+  padding-bottom: clamp(2rem, 5vw, 3.5rem);
+}
+
+.student-dashboard-grid {
+  padding: clamp(1rem, 3vw, 2rem);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--background) 65%, transparent);
+}
+
+.student-dashboard-grid > div {
+  min-width: 0;
+}
+
+.student-calendar > section,
+.student-notes > section {
+  min-height: 100%;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.student-dashboard-grid h2 {
+  margin: 0 0 1.25rem;
+}
+
+.student-dashboard-grid section section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.student-dashboard-grid button,
+.student-dashboard-grid a {
+  width: 100%;
+  margin-left: 0;
+  text-align: center;
+}
+
+.student-dashboard-grid label:has(input[type="checkbox"]) {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.65rem;
+}
+
+.student-dashboard-grid input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+  margin-top: 0.15rem;
+}
+
+.student-notes details {
+  padding: 1rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.student-notes summary {
+  cursor: pointer;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 36rem) {
+  .student-workspace {
+    padding: 0.5rem;
+  }
+}
+
 /* Tutor control room */
 .app-shell:has(.tutor-workspace) { display: block; }
 

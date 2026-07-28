@@ -53,8 +53,27 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
   await page.getByRole("button", { name: "Create Account" }).click();
   await expect(page.getByRole("heading", { name: "Student workspace" })).toBeVisible();
 
+  const studentWorkspace = page.locator(".student-workspace");
+  const studentWorkAreas = page.locator(".student-dashboard-grid > div > section");
+  await expect(studentWorkspace).toHaveCSS("background-image", /radial-gradient/);
+  await expect(studentWorkAreas).toHaveCount(2);
+  await expect(studentWorkAreas.first()).toHaveCSS("background-color", "rgba(250, 252, 255, 0.94)");
   const slots = page.getByRole("region", { name: "Bookable Slots" });
-  await slots.getByRole("button").first().click();
+  const firstSlot = slots.getByRole("button").first();
+  await firstSlot.focus();
+  await expect(firstSlot).toHaveCSS("outline-color", "rgb(20, 108, 255)");
+  for (const width of [390, 800, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await page.getByRole("button", { name: "Dark mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(studentWorkAreas.first()).toHaveCSS("background-color", "rgba(11, 25, 43, 0.94)");
+  for (const width of [1280, 800, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await firstSlot.click();
   await expect(page.getByText("Funding: First Session Promotion")).toBeVisible();
   await page.getByLabel("Optional Booking Focus").fill("Quadratic equations");
   await page.getByRole("button", { name: "Schedule session" }).click();

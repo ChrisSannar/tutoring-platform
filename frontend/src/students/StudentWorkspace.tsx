@@ -26,7 +26,7 @@ export function StudentWorkspace() {
   if (unavailable) return <main><p>Student Session unavailable</p></main>;
   if (!student) return <main><p>Loading Student Session…</p></main>;
   return (
-    <main><section className="hero">
+    <main className="student-workspace"><section className="hero student-workspace-shell">
       <p className="eyebrow">Your tutoring</p>
       <h1>Student workspace</h1>
       <p>Welcome, {student.display_name}</p>
