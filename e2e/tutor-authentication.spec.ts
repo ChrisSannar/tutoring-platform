@@ -7,9 +7,14 @@ test("Tutor signs in through the development outbox and logs out", async ({
 }) => {
   await page.goto("/tutor/sign-in");
 
-  await page.getByLabel("Email address").fill("tutor@example.com");
+  const accessSurface = page.locator("main.login-authentication");
+  await expect(accessSurface).toBeVisible();
+  await expect(page.getByText("© 2026 Tutoring Platform")).toBeVisible();
+  const emailInput = page.getByLabel("Email address");
+  await emailInput.fill("tutor@example.com");
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
   await expect(page.getByText("Check the development outbox")).toBeVisible();
+  await expect(accessSurface).toBeVisible();
 
   const outboxResponse = await page.request.get("/api/development/outbox");
   const outbox = await outboxResponse.json();
@@ -18,9 +23,12 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(
     page.getByRole("heading", { name: "Confirm Tutor sign-in" }),
   ).toBeVisible();
+  await expect(accessSurface).toBeVisible();
+  await expect(page.getByText("© 2026 Tutoring Platform")).toBeVisible();
   await page.getByRole("button", { name: "Confirm sign-in" }).click();
   const navigation = page.getByRole("navigation", { name: "Tutor workspace" });
   await expect(navigation).toBeVisible();
+  await expect(accessSurface).toHaveCount(0);
   await expect(navigation.getByRole("button")).toHaveCount(4);
   const overviewButton = navigation.getByRole("button", { name: "Overview" });
   const studentsButton = navigation.getByRole("button", { name: "Students & Calendar" });
@@ -99,6 +107,28 @@ test("Tutor signs in through the development outbox and logs out", async ({
     page.getByRole("heading", { name: "Tutor sign-in" }),
   ).toBeVisible();
   await expect(page.getByText("© 2026 Tutoring Platform")).toBeVisible();
+});
+
+test("Tutor access surface keeps theme, focus, and responsive geometry", async ({
+  page,
+}) => {
+  for (const theme of ["light", "dark"]) {
+    await page.goto("/tutor/sign-in");
+    await page.evaluate((value) => localStorage.setItem("theme", value), theme);
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+    for (const width of [390, 800, 1280]) {
+      await page.setViewportSize({ width, height: 800 });
+      await expect(page.locator("main.login-authentication")).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+  }
+
+  await page.keyboard.press("Tab");
+  const emailInput = page.getByLabel("Email address");
+  await expect(emailInput).toBeFocused();
+  expect(await emailInput.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe("none");
 });
 
 test("Tutor reviews, archives, and confirms deletion of Inquiries", async ({

@@ -64,25 +64,25 @@ export function TutorAuthentication() {
 
   if (screen === "sent") {
     return (
-      <main><section className="hero"><h1>Check the development outbox</h1></section></main>
+      <main className="login-authentication"><h1>Check the development outbox</h1></main>
     );
   }
   if (screen === "loading") {
-    return <main><p>Loading Tutor session…</p></main>;
+    return <main className="login-authentication"><p>Loading Tutor session…</p></main>;
   }
   if (screen === "confirm") {
     return (
-      <main><section className="hero">
+      <main className="login-authentication">
         <h1>Confirm Tutor sign-in</h1>
         <button onClick={confirmSignIn}>Confirm sign-in</button>
-      </section></main>
+      </main>
     );
   }
   if (screen === "workspace") {
     return <TutorWorkspace csrfToken={csrfToken} onLogOut={logOut} />;
   }
   return (
-    <main><section className="hero">
+    <main className="login-authentication">
       <h1>Tutor sign-in</h1>
       <form onSubmit={requestLink}>
         <label htmlFor="tutor-email">Email address</label>
@@ -95,6 +95,6 @@ export function TutorAuthentication() {
         />
         <button type="submit">Email me a sign-in link</button>
       </form>
-    </section></main>
+    </main>
   );
 }
