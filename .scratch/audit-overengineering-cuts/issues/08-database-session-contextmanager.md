@@ -7,7 +7,7 @@ it. Pure mechanical replacement — no transaction semantics change.
 
 **Blocked by:** 03 (touches the merged files)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] One contextmanager in `app/database.py`
 - [ ] All engine/dispose blocks replaced

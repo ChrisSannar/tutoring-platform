@@ -14,7 +14,7 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] refund_payment called directly; DI plumbing deleted
 - [ ] One initial migration; alembic upgrade head on a fresh DB reproduces the schema

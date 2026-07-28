@@ -11,7 +11,7 @@ shape that keeps every test passing unchanged in intent).
 
 **Blocked by:** 03 (test files touch merged modules' imports)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `conftest.py` owns shared setup; duplicated setup deleted from test files
 - [ ] No test's intent changed — mechanical replacement only
