@@ -10,7 +10,6 @@ async function stubTutorOverview(page: Page, overrides: TutorData = {}) {
     "/api/tutor/students": { students: [] },
     "/api/tutor/inquiries": { inquiries: [] },
     "/api/tutor/login-requests": { login_requests: [] },
-    "/api/tutor/refund-requests": { refund_requests: [] },
     "/api/tutor/overrides": [],
     ...overrides,
   };
@@ -23,7 +22,7 @@ test("Tutor Overview aggregates local operational data", async ({ page }) => {
     "/api/tutor/bookings": { bookings: [
       { id: "later", start_at: "2026-07-20T20:00:00Z", focus: "Polynomials", status: "upcoming", student: { display_name: "Sofia Patel" } },
       { id: "cancelled", start_at: "2026-07-20T16:00:00Z", focus: null, status: "cancelled", student: { display_name: "Noah Williams" } },
-      { id: "past", start_at: "2026-07-20T14:00:00Z", focus: "Fractions", status: "completed", student: { display_name: "Avery Chen" } },
+      { id: "past", start_at: "2026-07-20T14:00:00Z", focus: "Fractions", status: "past", student: { display_name: "Avery Chen" } },
       { id: "next", start_at: "2026-07-20T17:00:00Z", focus: "Related rates", status: "upcoming", student: { display_name: "Maya Chen" } },
       { id: "sunday", start_at: "2026-07-26T17:00:00Z", focus: null, status: "upcoming", student: { display_name: "Eli Thompson" } },
       { id: "next-week", start_at: "2026-07-27T17:00:00Z", focus: null, status: "upcoming", student: { display_name: "Jordan Lee" } },
@@ -43,10 +42,6 @@ test("Tutor Overview aggregates local operational data", async ({ page }) => {
       { id: "login", email: "student@example.com", status: "pending" },
       { id: "generated", email: "returning@example.com", status: "generated" },
     ] },
-    "/api/tutor/refund-requests": { refund_requests: [
-      { id: "refund", amount_cents: 7500, currency: "USD", status: "pending", student: { id: "1", display_name: "Avery Chen" } },
-      { id: "refunded", amount_cents: 7500, currency: "USD", status: "refunded", student: { id: "2", display_name: "Eli Thompson" } },
-    ] },
   });
 
   await page.goto("/tutor");
@@ -55,7 +50,7 @@ test("Tutor Overview aggregates local operational data", async ({ page }) => {
   await expect(metrics.getByText("Sessions today").locator("..")).toContainText("3");
   await expect(metrics.getByText("Bookings this week").locator("..")).toContainText("4");
   await expect(metrics.getByText("Active Students").locator("..")).toContainText("5");
-  await expect(metrics.getByText("Open requests").locator("..")).toContainText("3");
+  await expect(metrics.getByText("Open requests").locator("..")).toContainText("2");
 
   const rows = page.locator(".booking-ledger > div");
   await expect(rows).toHaveCount(2);
@@ -63,9 +58,9 @@ test("Tutor Overview aggregates local operational data", async ({ page }) => {
   await expect(rows.nth(1)).toContainText("Sofia Patel");
   await expect(page.locator(".overview-next")).toContainText("Maya Chen");
   await expect(page.locator(".overview-students li")).toHaveText(["Avery Chen", "Eli Thompson", "Maya Chen", "Noah Williams"]);
-  await expect(page.locator(".overview-requests")).toContainText("New Inquiries1Pending Login Requests1Pending Refund Requests1");
-  await expect(page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ })).toContainText("3");
-  const requestBadge = page.getByLabel("3 open requests");
+  await expect(page.locator(".overview-requests")).toContainText("New Inquiries1Pending Login Requests1");
+  await expect(page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ })).toContainText("2");
+  const requestBadge = page.getByLabel("2 open requests");
   await expect(requestBadge).toHaveCSS("background-color", "rgb(18, 34, 57)");
   await expect(requestBadge).toHaveCSS("border-top-color", "rgb(255, 255, 255)");
   await expect(requestBadge).toHaveCSS("color", "rgb(255, 255, 255)");
@@ -81,7 +76,7 @@ test("Tutor Overview aggregates local operational data", async ({ page }) => {
   await expect(studentButton).toHaveCSS("border-top-color", "rgb(18, 34, 57)");
   await expect(studentButton).toHaveCSS("border-radius", "0px");
   await page.getByRole("button", { name: "Overview" }).click();
-  await page.getByRole("button", { name: "3 open", exact: true }).click();
+  await page.getByRole("button", { name: "2 open", exact: true }).click();
   await expect(page.getByRole("region", { name: "Requests", exact: true })).toBeVisible();
 });
 
@@ -136,7 +131,6 @@ test("Tutor Overview retries a failed request", async ({ page }) => {
       "/api/tutor/students": { students: [] },
       "/api/tutor/inquiries": { inquiries: [] },
       "/api/tutor/login-requests": { login_requests: [] },
-      "/api/tutor/refund-requests": { refund_requests: [] },
       "/api/tutor/overrides": [],
     };
     return route.fulfill({ json: bodies[path] });

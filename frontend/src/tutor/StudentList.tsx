@@ -4,8 +4,7 @@ import { tutorWallTimeToInstant } from "../tutorTime";
 
 type Student = { id: string; email: string; display_name: string };
 type StudentDetail = Student & {
-  funding: { first_session_promotion: "available" | "unavailable"; session_credits: number };
-  pending_refund_requests: Array<{ id: string }>;
+  funding: { session_credits: number };
   upcoming_booking: { id: string } | null;
 };
 
@@ -120,9 +119,6 @@ export function StudentList({ csrfToken, tutorTimezone }: { csrfToken: string; t
           <input id="student-detail-name" value={detail.display_name} readOnly />
           <label htmlFor="student-detail-email">Login email</label>
           <input id="student-detail-email" value={detail.email} readOnly />
-          <p>
-            First Session Promotion: {detail.funding.first_session_promotion === "available" ? "Available" : "Unavailable"}
-          </p>
           <p>Session Credits: {detail.funding.session_credits}</p>
           <label htmlFor="credit-adjustment">Credit adjustment</label>
           <input
@@ -144,9 +140,6 @@ export function StudentList({ csrfToken, tutorTimezone }: { csrfToken: string; t
           >
             Apply credit adjustment
           </button>
-          <p>
-            Refund Requests: {detail.pending_refund_requests.length === 0 ? "None" : detail.pending_refund_requests.length}
-          </p>
           <p>Upcoming Booking: {detail.upcoming_booking ? "Scheduled" : "None"}</p>
           <label htmlFor="complimentary-start">Complimentary Booking start</label>
           <input id="complimentary-start" type="datetime-local" value={complimentaryStart} onChange={(event) => setComplimentaryStart(event.target.value)} />

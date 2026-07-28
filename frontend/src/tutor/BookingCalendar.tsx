@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { tutorDateTimeInputValue, tutorDateTimeLabel, tutorWallTimeToInstant } from "../tutorTime";
 
-type Booking = { id: string; start_at: string; funding_kind: string; meeting_details: string | null; student: { id: string; display_name: string; email: string } };
+type Booking = { id: string; start_at: string; status: "upcoming" | "past" | "cancelled"; funding_kind: string; meeting_details: string | null; student: { id: string; display_name: string; email: string } };
 type Override = { id: string; start_at: string; warning: string };
 
 export function BookingCalendar({ csrfToken, tutorTimezone }: { csrfToken: string; tutorTimezone: string }) {
@@ -46,6 +46,17 @@ export function BookingCalendar({ csrfToken, tutorTimezone }: { csrfToken: strin
     if (response.ok) replaceBooking(await response.json());
   }
 
+  async function cancelBooking() {
+    if (!selected) return;
+    const response = await fetch(`/api/tutor/bookings/${selected.id}/cancel`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Idempotency-Key": crypto.randomUUID() },
+    });
+    if (!response.ok) return;
+    const cancelled = await response.json();
+    replaceBooking(cancelled);
+  }
+
   const chosenOverride = overrides.find((item) => item.id === overrideId);
-  return <section aria-labelledby="booking-calendar-heading"><h2 id="booking-calendar-heading">Weekly Booking Calendar</h2>{bookings.length === 0 ? <p>No Bookings.</p> : bookings.map((booking) => <button key={booking.id} onClick={() => select(booking)}>{booking.student.display_name} — {tutorDateTimeLabel(booking.start_at, tutorTimezone)}</button>)}{selected ? <section aria-labelledby="calendar-booking-heading"><h3 id="calendar-booking-heading">Selected Booking</h3><p>{selected.student.display_name}</p><p>Funding: {selected.funding_kind}</p><label htmlFor="calendar-meeting-details">Meeting Details</label><textarea id="calendar-meeting-details" value={details} onChange={(event) => setDetails(event.target.value)} /><button onClick={saveDetails}>Save Meeting Details</button><label htmlFor="calendar-booking-start">Move Booking</label><input id="calendar-booking-start" type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} /><label htmlFor="calendar-override">Tutor Override</label><select id="calendar-override" value={overrideId} onChange={(event) => { const value = event.target.value; setOverrideId(value); setAcknowledged(false); const chosen = overrides.find((item) => item.id === value); if (chosen) setStart(tutorDateTimeInputValue(chosen.start_at, tutorTimezone)); }}><option value="">Normal Bookable Slot</option>{overrides.map((item) => <option key={item.id} value={item.id}>{item.warning}</option>)}</select>{chosenOverride ? <label><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />I acknowledge: {chosenOverride.warning}</label> : null}<button onClick={moveBooking} disabled={Boolean(chosenOverride) && !acknowledged}>Move Booking</button></section> : null}</section>;
+  return <section aria-labelledby="booking-calendar-heading"><h2 id="booking-calendar-heading">Weekly Booking Calendar</h2>{bookings.length === 0 ? <p>No Bookings.</p> : bookings.map((booking) => <button key={booking.id} onClick={() => select(booking)}>{booking.student.display_name} — {tutorDateTimeLabel(booking.start_at, tutorTimezone)} — {booking.status}</button>)}{selected ? <section aria-labelledby="calendar-booking-heading"><h3 id="calendar-booking-heading">Selected Booking</h3><p>{selected.student.display_name}</p><p>Status: {selected.status}</p><p>Funding: {selected.funding_kind}</p>{selected.status === "upcoming" ? <><label htmlFor="calendar-meeting-details">Meeting Details</label><textarea id="calendar-meeting-details" value={details} onChange={(event) => setDetails(event.target.value)} /><button onClick={saveDetails}>Save Meeting Details</button><label htmlFor="calendar-booking-start">Move Booking</label><input id="calendar-booking-start" type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} /><label htmlFor="calendar-override">Tutor Override</label><select id="calendar-override" value={overrideId} onChange={(event) => { const value = event.target.value; setOverrideId(value); setAcknowledged(false); const chosen = overrides.find((item) => item.id === value); if (chosen) setStart(tutorDateTimeInputValue(chosen.start_at, tutorTimezone)); }}><option value="">Normal Bookable Slot</option>{overrides.map((item) => <option key={item.id} value={item.id}>{item.warning}</option>)}</select>{chosenOverride ? <label><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />I acknowledge: {chosenOverride.warning}</label> : null}<button onClick={moveBooking} disabled={Boolean(chosenOverride) && !acknowledged}>Move Booking</button><button onClick={cancelBooking}>Cancel Booking</button></> : <p>This historical Booking is read-only.</p>}</section> : null}</section>;
 }

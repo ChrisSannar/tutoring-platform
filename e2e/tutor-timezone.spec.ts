@@ -30,7 +30,7 @@ test("Tutor scheduling uses the Tutor Timezone in a browser with a different tim
     const response = await fetch("/api/tutor/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-      body: JSON.stringify({ currency: "USD", session_price_cents: 7500, tutor_timezone: "America/New_York", default_meeting_details: null }),
+      body: JSON.stringify({ tutor_timezone: "America/New_York", default_meeting_details: null }),
     });
     if (!response.ok) throw new Error(`settings returned ${response.status}`);
   }, csrfToken);

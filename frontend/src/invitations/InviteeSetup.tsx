@@ -52,6 +52,8 @@ export function InviteeSetup() {
     <main className="login-authentication">
       <p className="eyebrow">Your personal Invitation</p>
       <h1>Create your Student account</h1>
+      <p>This Invitation is for <strong>{invitation.email}</strong>. Confirm that this is your email, then enter the name the Tutor should use for you.</p>
+      <p>If this email is incorrect, contact the Tutor for a corrected Invitation.</p>
       <form onSubmit={createAccount}>
         <label htmlFor="invitee-bound-email">Bound email</label>
         <input

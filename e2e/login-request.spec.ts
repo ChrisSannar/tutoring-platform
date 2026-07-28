@@ -54,9 +54,10 @@ test("returning Student receives a Tutor-generated Login Link", async ({ browser
   const publicContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
   const publicPage = await publicContext.newPage();
   await publicPage.goto("/");
-  await publicPage.getByRole("link", { name: "Log In" }).click();
-  await publicPage.getByLabel("Email address").fill("returning@example.com");
-  await publicPage.getByRole("button", { name: "Request Login Link" }).click();
+  await publicPage.getByRole("button", { name: "I’m already a student" }).click();
+  const loginDialog = publicPage.getByRole("dialog", { name: "Request a Login Link" });
+  await loginDialog.getByLabel("Email address").fill("returning@example.com");
+  await loginDialog.getByRole("button", { name: "Request Login Link" }).click();
   await expect(publicPage.getByRole("heading", { name: "Login Request received" })).toBeVisible();
 
   await signInTutor(page);
@@ -69,6 +70,6 @@ test("returning Student receives a Tutor-generated Login Link", async ({ browser
   await publicPage.getByRole("button", { name: "Confirm sign-in" }).click();
   await expect(publicPage.getByRole("heading", { name: "Student workspace" })).toBeVisible();
   await publicPage.goto("/");
-  await expect(publicPage.getByRole("link", { name: "Dashboard" })).toBeVisible();
+  await expect(publicPage).toHaveURL(/\/student$/);
   await publicContext.close();
 });

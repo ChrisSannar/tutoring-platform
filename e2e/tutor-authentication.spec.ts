@@ -53,7 +53,6 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(availabilityPanel).toHaveCount(0);
   await expect(requestsPanel.getByRole("heading", { name: "Active Inquiries" })).toBeVisible();
   await expect(requestsPanel.getByRole("heading", { name: "Login Requests" })).toBeVisible();
-  await expect(requestsPanel.getByRole("heading", { name: "Refund Requests" })).toBeVisible();
   await expect(page.getByText("© 2026 Tutoring Platform")).toBeHidden();
   const themeToggle = page.getByRole("button", { name: "Dark mode" });
   await expect(themeToggle).toHaveAttribute("aria-pressed", "false");
@@ -62,8 +61,7 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute("aria-pressed", "true");
 
   await availabilityButton.click();
-  await expect(page.getByLabel("Session price (USD)")).toHaveValue("75.00");
-  await page.getByLabel("Session price (USD)").fill("82.50");
+  await expect(page.getByLabel("Tutor timezone")).toHaveValue("America/Chicago");
   await page.getByLabel("Tutor timezone").fill("America/New_York");
   await page
     .getByLabel("Default remote Meeting Details")
@@ -74,7 +72,7 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await page.reload();
   await expect(page.getByRole("navigation", { name: "Tutor workspace" })).toBeVisible();
   await page.getByRole("button", { name: "Availability & Business" }).click();
-  await expect(page.getByLabel("Session price (USD)")).toHaveValue("82.50");
+  await expect(page.getByLabel("Tutor timezone")).toHaveValue("America/New_York");
 
   const availability = page.getByRole("form", { name: "Add Availability" });
   await availability.getByLabel("Weekday").selectOption("0");

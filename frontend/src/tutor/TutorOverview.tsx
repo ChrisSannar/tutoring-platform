@@ -4,7 +4,7 @@ type Booking = {
   id: string;
   start_at: string;
   focus: string | null;
-  status: "upcoming" | "completed" | "cancelled";
+  status: "upcoming" | "past" | "cancelled";
   student: { display_name: string };
 };
 
@@ -16,7 +16,6 @@ type OverviewData = {
   students: Student[];
   inquiries: Array<{ status: "new" | "invited" }>;
   loginRequests: Array<{ status: "pending" | "generated" }>;
-  refundRequests: Array<{ status: "pending" | "declined" | "refunded" }>;
   timezone: string;
 };
 
@@ -50,8 +49,6 @@ export function summarizeTutorOverview(data: OverviewData, now = new Date()) {
     .sort((left, right) => Date.parse(left.start_at) - Date.parse(right.start_at));
   const newInquiries = data.inquiries.filter((item) => item.status === "new").length;
   const pendingLoginRequests = data.loginRequests.filter((item) => item.status === "pending").length;
-  const pendingRefundRequests = data.refundRequests.filter((item) => item.status === "pending").length;
-
   return {
     weekday: new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: data.timezone }).format(now),
     sessionsToday: activeBookings.filter((booking) => localDateKey(new Date(booking.start_at), data.timezone) === today).length,
@@ -64,8 +61,7 @@ export function summarizeTutorOverview(data: OverviewData, now = new Date()) {
     students: [...data.students].sort((left, right) => left.display_name.localeCompare(right.display_name)),
     newInquiries,
     pendingLoginRequests,
-    pendingRefundRequests,
-    openRequests: newInquiries + pendingLoginRequests + pendingRefundRequests,
+    openRequests: newInquiries + pendingLoginRequests,
   };
 }
 
@@ -82,12 +78,11 @@ export function TutorOverview({ onSelectView, onTimezoneChange, onOpenRequestsCh
     setFailed(false);
     setData(null);
     try {
-      const [bookings, students, inquiries, loginRequests, refundRequests, settings] = await Promise.all([
+      const [bookings, students, inquiries, loginRequests, settings] = await Promise.all([
         fetch("/api/tutor/bookings").then(json),
         fetch("/api/tutor/students").then(json),
         fetch("/api/tutor/inquiries").then(json),
         fetch("/api/tutor/login-requests").then(json),
-        fetch("/api/tutor/refund-requests").then(json),
         fetch("/api/tutor/settings").then(json),
       ]);
       const loaded = {
@@ -95,15 +90,13 @@ export function TutorOverview({ onSelectView, onTimezoneChange, onOpenRequestsCh
         students: students.students,
         inquiries: inquiries.inquiries,
         loginRequests: loginRequests.login_requests,
-        refundRequests: refundRequests.refund_requests,
         timezone: settings.tutor_timezone,
       };
       setData(loaded);
       onTimezoneChange(loaded.timezone);
       onOpenRequestsChange(
         loaded.inquiries.filter((item: { status: string }) => item.status === "new").length
-        + loaded.loginRequests.filter((item: { status: string }) => item.status === "pending").length
-        + loaded.refundRequests.filter((item: { status: string }) => item.status === "pending").length,
+        + loaded.loginRequests.filter((item: { status: string }) => item.status === "pending").length,
       );
     } catch {
       setFailed(true);
@@ -139,7 +132,7 @@ export function TutorOverview({ onSelectView, onTimezoneChange, onOpenRequestsCh
       </article>
       <article className="overview-next"><span>Next Booking</span>{summary.nextBooking ? <><strong>{time(summary.nextBooking.start_at)}</strong><h2>{summary.nextBooking.student.display_name}</h2><p>{summary.nextBooking.focus || "No Booking Focus"}</p></> : <p className="overview-empty">No upcoming Bookings.</p>}</article>
       <article className="overview-students"><header><h2>Students</h2><button type="button" onClick={() => onSelectView("students")}>All {summary.students.length}</button></header>{summary.students.length === 0 ? <p className="overview-empty">No Students yet.</p> : <ul>{summary.students.slice(0, 4).map((student) => <li key={student.id}>{student.display_name}</li>)}</ul>}</article>
-      <article className="overview-requests"><header><h2>Request Queue</h2><button type="button" onClick={() => onSelectView("requests")}>{summary.openRequests} open</button></header>{summary.openRequests === 0 ? <p className="overview-empty">No open requests.</p> : <dl><div><dt>New Inquiries</dt><dd>{summary.newInquiries}</dd></div><div><dt>Pending Login Requests</dt><dd>{summary.pendingLoginRequests}</dd></div><div><dt>Pending Refund Requests</dt><dd>{summary.pendingRefundRequests}</dd></div></dl>}</article>
+      <article className="overview-requests"><header><h2>Request Queue</h2><button type="button" onClick={() => onSelectView("requests")}>{summary.openRequests} open</button></header>{summary.openRequests === 0 ? <p className="overview-empty">No open requests.</p> : <dl><div><dt>New Inquiries</dt><dd>{summary.newInquiries}</dd></div><div><dt>Pending Login Requests</dt><dd>{summary.pendingLoginRequests}</dd></div></dl>}</article>
     </section>
   </div>;
 }

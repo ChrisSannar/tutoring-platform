@@ -1,17 +1,34 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { InquiryModal } from "./InquiryModal";
 
 export function LandingPage() {
-  const [dashboardPath, setDashboardPath] = useState("");
+  const [tutorDashboard, setTutorDashboard] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [accepted, setAccepted] = useState(false);
 
   useEffect(() => {
     void fetch("/api/auth/session").then(async (response) => {
       if (!response.ok) return;
       const session = await response.json();
-      setDashboardPath(session.role === "tutor" ? "/tutor" : "/student");
+      if (session.role === "student") {
+        window.location.replace("/student");
+      } else {
+        setTutorDashboard(true);
+      }
     });
   }, []);
+
+  async function requestLogin(event: FormEvent) {
+    event.preventDefault();
+    const response = await fetch("/api/auth/magic-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (response.ok) setAccepted(true);
+  }
 
   return (
     <main>
@@ -23,10 +40,40 @@ export function LandingPage() {
           you learn best.
         </p>
         <InquiryModal />
-        <a href={dashboardPath || "/sign-in"}>
-          {dashboardPath ? "Dashboard" : "Log In"}
-        </a>
+        {tutorDashboard ? (
+          <a href="/tutor">Dashboard</a>
+        ) : (
+          <button type="button" onClick={() => setLoginOpen(true)}>
+            I’m already a student
+          </button>
+        )}
       </section>
+      {loginOpen ? (
+        <dialog open aria-labelledby="student-login-heading">
+          <h2 id="student-login-heading">
+            {accepted ? "Login Request received" : "Request a Login Link"}
+          </h2>
+          {accepted ? (
+            <>
+              <p>The Tutor will send your Login Link to the email on your Student account.</p>
+              <button type="button" onClick={() => setLoginOpen(false)}>Close</button>
+            </>
+          ) : (
+            <form onSubmit={requestLogin}>
+              <label htmlFor="student-login-email">Email address</label>
+              <input
+                id="student-login-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+              <button type="submit">Request Login Link</button>
+              <button type="button" onClick={() => setLoginOpen(false)}>Cancel</button>
+            </form>
+          )}
+        </dialog>
+      ) : null}
     </main>
   );
 }

@@ -2,52 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { signInTutor } from "./helpers";
 
-test("Checkout states keep Constellation hierarchy without overflow", async ({ page }) => {
-  let releaseCheckout!: () => void;
-  await page.route("**/api/student/checkouts/checkout-test", async (route) => {
-    await new Promise<void>((resolve) => { releaseCheckout = resolve; });
-    await route.fulfill({
-      json: {
-        checkout_session_id: "checkout-test",
-        checkout_url: "/checkout/fake/checkout-test",
-        amount_cents: 12500,
-        currency: "USD",
-        status: "pending",
-      },
-    });
-  });
-
-  await page.goto("/checkout/fake/checkout-test");
-  const checkout = page.locator(".login-authentication");
-  await expect(page.getByText("Loading checkout status…")).toBeVisible();
-  await expect.poll(() => typeof releaseCheckout).toBe("function");
-  releaseCheckout();
-
-  await expect(page.getByRole("heading", { name: "Test Checkout" })).toBeVisible();
-  await expect(page.getByRole("status")).toHaveText("Status: pending");
-  await expect(checkout).toHaveCSS("background-color", "rgba(250, 252, 255, 0.94)");
-  const returnLink = page.getByRole("link", { name: "Return to tutoring platform" });
-  await expect(returnLink).toHaveAttribute("href", "/checkout/return?session_id=checkout-test");
-  await returnLink.focus();
-  await expect(returnLink).toHaveCSS("outline-color", "rgb(20, 108, 255)");
-  for (const width of [390, 800, 1280]) {
-    await page.setViewportSize({ width, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  }
-
-  await page.getByRole("button", { name: "Dark mode" }).click();
-  await expect(checkout).toHaveCSS("background-color", "rgba(11, 25, 43, 0.94)");
-  for (const width of [1280, 800, 390]) {
-    await page.setViewportSize({ width, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  }
-
-  await page.goto("/checkout/return");
-  await expect(page.getByRole("heading", { name: "Checkout unavailable" })).toBeVisible();
-  await expect(page.locator(".login-authentication")).toBeVisible();
-});
-
-test("Inquiry becomes a promotion-funded lesson with a published note", async ({ browser, page, playwright }, testInfo) => {
+test("Inquiry becomes recurring credit-funded Bookings with a published note and returning login", async ({ browser, page, playwright }, testInfo) => {
   test.setTimeout(60_000);
   const origin = testInfo.project.use.baseURL;
   if (!origin) throw new Error("Playwright baseURL must be configured");
@@ -119,10 +74,14 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
   await firstSlot.click();
-  await expect(page.getByText("Funding: First Session Promotion")).toBeVisible();
+  await expect(page.getByText("Funding: Session Credit")).toBeVisible();
   await page.getByLabel("Optional Booking Focus").fill("Quadratic equations");
   await page.getByRole("button", { name: "Schedule session" }).click();
   await expect(page.getByRole("heading", { name: "Upcoming Booking" })).toBeVisible();
+  const calendarLink = page.getByRole("link", { name: "Download Calendar (.ics)" });
+  const calendarResponse = await page.request.get((await calendarLink.getAttribute("href"))!);
+  expect(calendarResponse.status()).toBe(200);
+  expect(await calendarResponse.text()).toContain("BEGIN:VCALENDAR");
 
   await tutorPage.reload();
   await tutorPage.getByRole("button", { name: "Students & Calendar" }).click();
@@ -133,6 +92,12 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
   const studentId = studentsAfterClaim.students.find((student: { email: string }) => student.email === "critical@example.com").id;
   const noteWorkspace = await tutorPage.evaluate((id) => fetch(`/api/tutor/students/${id}/lesson-note-workspace`).then((response) => response.json()), studentId);
   expect(noteWorkspace).toHaveLength(1);
+  await page.reload();
+  await expect(page.getByText("Session Credits: 1")).toBeVisible();
+  const nextSlots = page.getByRole("region", { name: "Bookable Slots" });
+  await nextSlots.getByRole("button").first().click();
+  await page.getByRole("button", { name: "Schedule session" }).click();
+  await expect(page.getByRole("heading", { name: "Upcoming Booking" })).toBeVisible();
   await tutorPage.reload();
   await tutorPage.getByRole("button", { name: "Students & Calendar" }).click();
   await tutorPage.getByRole("button", { name: "Avery Critical", exact: true }).click();
@@ -153,7 +118,28 @@ test("Inquiry becomes a promotion-funded lesson with a published note", async ({
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toContain("quadratics-review.md");
   await page.goto("/");
-  await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
+  await expect(page).toHaveURL(/\/student$/);
 
+  const returningContext = await browser.newContext({ baseURL: origin });
+  const returningPage = await returningContext.newPage();
+  await returningPage.goto("/");
+  await returningPage.getByRole("button", { name: "I’m already a student" }).click();
+  const loginDialog = returningPage.getByRole("dialog", { name: "Request a Login Link" });
+  await loginDialog.getByLabel("Email address").fill("critical@example.com");
+  await loginDialog.getByRole("button", { name: "Request Login Link" }).click();
+  await expect(returningPage.getByRole("heading", { name: "Login Request received" })).toBeVisible();
+
+  await detail.getByRole("button", { name: "Close Student Detail" }).click();
+  await tutorPage.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
+  const loginRequest = tutorPage.getByRole("article").filter({ hasText: "critical@example.com" });
+  await loginRequest.getByRole("button", { name: "Generate Login Link" }).click();
+  const loginLink = await loginRequest.getByLabel("Login Link").inputValue();
+  await returningPage.goto(loginLink);
+  await returningPage.getByRole("button", { name: "Confirm sign-in" }).click();
+  await expect(returningPage.getByRole("heading", { name: "Student workspace" })).toBeVisible();
+  await returningPage.goto("/");
+  await expect(returningPage).toHaveURL(/\/student$/);
+
+  await returningContext.close();
   await tutorContext.close();
 });

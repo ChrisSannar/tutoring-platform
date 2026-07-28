@@ -5,7 +5,6 @@ import { BusinessSettings } from "./BusinessSettings";
 import { InquiryQueue } from "./InquiryQueue";
 import { InvitationManager } from "./InvitationManager";
 import { LoginRequestQueue } from "./LoginRequestQueue";
-import { RefundQueue } from "./RefundQueue";
 import { StudentList } from "./StudentList";
 import { TutorOverview } from "./TutorOverview";
 
@@ -75,7 +74,6 @@ export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
       {activeView === "requests" ? <section className="tutor-requests" aria-label="Requests">
         <InquiryQueue csrfToken={csrfToken} />
         <LoginRequestQueue csrfToken={csrfToken} />
-        <RefundQueue csrfToken={csrfToken} />
         <InvitationManager csrfToken={csrfToken} />
       </section> : null}
     </section>
