@@ -1,7 +1,7 @@
 # 03 — Redesign role-aware Login
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02
 
 ## What to build
@@ -16,11 +16,18 @@ Constellation surface using shared primitives.
 
 ## Acceptance
 
-- [ ] Login and its result states retain equivalent hierarchy in both themes.
-- [ ] Keyboard focus remains visible.
-- [ ] No horizontal overflow at `390px`, `800px`, or `1280px`.
-- [ ] Frontend build and closest authentication Playwright coverage pass.
-- [ ] One commit.
+- [x] Login and its result states retain equivalent hierarchy in both themes.
+- [x] Keyboard focus remains visible.
+- [x] No horizontal overflow at `390px`, `800px`, or `1280px`.
+- [x] Frontend build and closest authentication Playwright coverage pass.
+- [x] One commit.
 
 ## Comments
 
+## Answer
+
+- Reused one scoped `login-authentication` class across request, sent, confirm,
+  and invalid states without changing copy, roles, actions, API calls, or redirects.
+- `bun run build` passed.
+- `bun run test:e2e -- e2e/login-request.spec.ts` passed: 2 tests.
+- Delivery is one issue-scoped commit.

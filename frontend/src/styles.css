@@ -120,6 +120,27 @@ main {
   flex-wrap: wrap;
 }
 
+.login-authentication {
+  width: min(36rem, calc(100% - 2rem));
+  place-self: center;
+  place-items: stretch;
+  padding: clamp(2rem, 7vw, 4rem);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 1.5rem 4rem color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.login-authentication form {
+  max-width: none;
+}
+
+.login-authentication p {
+  margin: 2rem 0 0;
+  color: var(--muted);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.7;
+}
+
 .student-dashboard-grid,
 .tutor-dashboard-grid {
   display: grid;

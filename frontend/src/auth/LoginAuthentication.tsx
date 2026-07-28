@@ -32,8 +32,8 @@ export function LoginAuthentication() {
     window.location.assign(authenticated.role === "tutor" ? "/tutor" : "/student");
   }
 
-  if (screen === "sent") return <main><h1>Login Request received</h1><p>If the address is eligible, the Tutor will send a Login Link.</p></main>;
-  if (screen === "invalid") return <main><h1>Login Link unavailable</h1></main>;
-  if (screen === "confirm") return <main><h1>Confirm sign-in</h1><button onClick={confirmSignIn}>Confirm sign-in</button></main>;
-  return <main><h1>Log In</h1><form onSubmit={requestLink}><label htmlFor="login-email">Email address</label><input id="login-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /><button type="submit">Request Login Link</button></form></main>;
+  if (screen === "sent") return <main className="login-authentication"><h1>Login Request received</h1><p>If the address is eligible, the Tutor will send a Login Link.</p></main>;
+  if (screen === "invalid") return <main className="login-authentication"><h1>Login Link unavailable</h1></main>;
+  if (screen === "confirm") return <main className="login-authentication"><h1>Confirm sign-in</h1><button onClick={confirmSignIn}>Confirm sign-in</button></main>;
+  return <main className="login-authentication"><h1>Log In</h1><form onSubmit={requestLink}><label htmlFor="login-email">Email address</label><input id="login-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /><button type="submit">Request Login Link</button></form></main>;
 }
