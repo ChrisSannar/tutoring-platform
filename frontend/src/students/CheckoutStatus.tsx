@@ -24,9 +24,9 @@ export function CheckoutStatus() {
     });
   }, [sessionId]);
 
-  if (unavailable) return <main><section className="hero"><h1>Checkout unavailable</h1></section></main>;
-  if (!checkout) return <main><section className="hero"><p>Loading checkout status…</p></section></main>;
+  if (unavailable) return <main className="login-authentication"><h1>Checkout unavailable</h1></main>;
+  if (!checkout) return <main className="login-authentication"><p>Loading checkout status…</p></main>;
   const amount = new Intl.NumberFormat("en-US", { style: "currency", currency: checkout.currency }).format(checkout.amount_cents / 100);
   const fake = window.location.pathname.startsWith("/checkout/fake/");
-  return <main><section className="hero" aria-labelledby="checkout-heading"><p className="eyebrow">Secure payment</p><h1 id="checkout-heading">{fake ? "Test Checkout" : "Payment status"}</h1><p>Exact session price: {amount}</p><p role="status">Status: {checkout.status}</p>{fake ? <p>This deterministic test provider never marks payment complete from the browser.</p> : null}<a href={fake ? `/checkout/return?session_id=${encodeURIComponent(checkout.checkout_session_id)}` : "/student"}>{fake ? "Return to tutoring platform" : "Return to Student workspace"}</a></section></main>;
+  return <main className="login-authentication" aria-labelledby="checkout-heading"><p className="eyebrow">Secure payment</p><h1 id="checkout-heading">{fake ? "Test Checkout" : "Payment status"}</h1><p>Exact session price: {amount}</p><p role="status">Status: {checkout.status}</p>{fake ? <p>This deterministic test provider never marks payment complete from the browser.</p> : null}<a href={fake ? `/checkout/return?session_id=${encodeURIComponent(checkout.checkout_session_id)}` : "/student"}>{fake ? "Return to tutoring platform" : "Return to Student workspace"}</a></main>;
 }

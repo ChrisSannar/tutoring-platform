@@ -2,6 +2,51 @@ import { expect, test } from "@playwright/test";
 
 import { signInTutor } from "./helpers";
 
+test("Checkout states keep Constellation hierarchy without overflow", async ({ page }) => {
+  let releaseCheckout!: () => void;
+  await page.route("**/api/student/checkouts/checkout-test", async (route) => {
+    await new Promise<void>((resolve) => { releaseCheckout = resolve; });
+    await route.fulfill({
+      json: {
+        checkout_session_id: "checkout-test",
+        checkout_url: "/checkout/fake/checkout-test",
+        amount_cents: 12500,
+        currency: "USD",
+        status: "pending",
+      },
+    });
+  });
+
+  await page.goto("/checkout/fake/checkout-test");
+  const checkout = page.locator(".login-authentication");
+  await expect(page.getByText("Loading checkout status…")).toBeVisible();
+  await expect.poll(() => typeof releaseCheckout).toBe("function");
+  releaseCheckout();
+
+  await expect(page.getByRole("heading", { name: "Test Checkout" })).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("Status: pending");
+  await expect(checkout).toHaveCSS("background-color", "rgba(250, 252, 255, 0.94)");
+  const returnLink = page.getByRole("link", { name: "Return to tutoring platform" });
+  await expect(returnLink).toHaveAttribute("href", "/checkout/return?session_id=checkout-test");
+  await returnLink.focus();
+  await expect(returnLink).toHaveCSS("outline-color", "rgb(20, 108, 255)");
+  for (const width of [390, 800, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+
+  await page.getByRole("button", { name: "Dark mode" }).click();
+  await expect(checkout).toHaveCSS("background-color", "rgba(11, 25, 43, 0.94)");
+  for (const width of [1280, 800, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+
+  await page.goto("/checkout/return");
+  await expect(page.getByRole("heading", { name: "Checkout unavailable" })).toBeVisible();
+  await expect(page.locator(".login-authentication")).toBeVisible();
+});
+
 test("Inquiry becomes a promotion-funded lesson with a published note", async ({ browser, page, playwright }, testInfo) => {
   test.setTimeout(60_000);
   const origin = testInfo.project.use.baseURL;
