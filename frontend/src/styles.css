@@ -1,33 +1,34 @@
 :root {
   color: var(--ink);
-  background: var(--page);
+  background: var(--background);
   font-family: Georgia, "Times New Roman", serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: #18221d;
-  --muted-ink: #5d675f;
-  --page: #f4f0e8;
-  --paper: #fffdf7;
-  --field: #fffefa;
-  --line: #b9ad98;
-  --line-strong: #887a67;
-  --accent: #315c49;
-  --accent-dark: #244638;
-  --focus: #d7a65d;
+  --background: #eef3f9;
+  --surface: rgb(250 252 255 / 94%);
+  --raised: #ffffff;
+  --ink: #122239;
+  --muted: #607086;
+  --line: #b7c6d8;
+  --line-strong: #91a7c0;
+  --accent: #146cff;
+  --control: #122239;
+  --control-ink: #ffffff;
+  --control-border: var(--control);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --ink: #f4f0e8;
-  --muted-ink: #c2c9c3;
-  --page: #18221d;
-  --paper: #243129;
-  --field: #1d2922;
-  --line: #516157;
-  --line-strong: #7c8d82;
-  --accent: #8dbda5;
-  --accent-dark: #a8d0bc;
-  --focus: #e0b36d;
+  --background: #07111f;
+  --surface: rgb(11 25 43 / 94%);
+  --raised: #102741;
+  --ink: #edf5ff;
+  --muted: #8fa6bf;
+  --line: #1e3d5d;
+  --line-strong: #315779;
+  --accent: #9cbcff;
+  --control: #171e2b;
+  --control-border: var(--control-ink);
   color-scheme: dark;
 }
 
@@ -44,8 +45,8 @@ body {
   min-width: 20rem;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--paper) 85%, transparent), transparent 34rem),
-    var(--page);
+    radial-gradient(circle at top left, color-mix(in srgb, var(--surface) 85%, transparent), transparent 34rem),
+    var(--background);
 }
 
 .app-shell {
@@ -65,7 +66,7 @@ main {
   padding: 1rem 2rem;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  color: var(--muted-ink);
+  color: var(--muted);
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -86,9 +87,9 @@ main {
   width: min(48rem, 100%);
   padding: clamp(2rem, 7vw, 5rem);
   border: 1px solid var(--line);
-  border-radius: 1.5rem;
-  background: var(--paper);
-  box-shadow: 0 1.5rem 4rem rgb(49 54 43 / 12%);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: 0 1.5rem 4rem color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .student-dashboard-grid,
@@ -120,7 +121,7 @@ main {
 
 .eyebrow {
   margin: 0 0 1rem;
-  color: var(--muted-ink);
+  color: var(--muted);
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 0.8rem;
   font-weight: 700;
@@ -172,7 +173,7 @@ h3 {
 .intro {
   max-width: 34rem;
   margin: 2rem 0;
-  color: var(--muted-ink);
+  color: var(--muted);
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 1.1rem;
   line-height: 1.7;
@@ -181,17 +182,21 @@ h3 {
 a {
   display: inline-block;
   padding: 0.85rem 1.15rem;
-  border-radius: 999px;
-  color: var(--paper);
-  background: var(--accent);
+  border: 1px solid var(--control-border);
+  border-radius: 0;
+  color: var(--control-ink);
+  background: var(--control);
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-weight: 700;
   text-decoration: none;
 }
 
-a:focus-visible,
 a:hover {
-  outline: 0.2rem solid var(--focus);
+  background: color-mix(in srgb, var(--control) 88%, var(--accent));
+}
+
+a:focus-visible {
+  outline: 0.2rem solid var(--accent);
   outline-offset: 0.2rem;
 }
 
@@ -219,9 +224,9 @@ textarea {
   display: block;
   width: 100%;
   border: 1px solid var(--line-strong);
-  border-radius: 0.65rem;
+  border-radius: 0;
   color: var(--ink);
-  background: var(--field);
+  background: var(--raised);
   box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
   font: 1rem/1.4 ui-sans-serif, system-ui, sans-serif;
   transition:
@@ -254,15 +259,15 @@ textarea:focus-visible {
   border-color: var(--accent);
   outline: none;
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--focus) 32%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent),
     inset 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent);
 }
 
 input[readonly],
 textarea[readonly] {
   border-color: var(--line);
-  color: var(--muted-ink);
-  background: var(--page);
+  color: var(--muted);
+  background: var(--background);
   cursor: default;
 }
 
@@ -270,18 +275,17 @@ button {
   min-height: 2.75rem;
   margin-top: 1rem;
   padding: 0.7rem 1.1rem;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  color: var(--paper);
-  background: var(--accent);
-  box-shadow: 0 0.35rem 0.9rem color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid var(--control-border);
+  border-radius: 0;
+  color: var(--control-ink);
+  background: var(--control);
+  box-shadow: none;
   cursor: pointer;
   font: 700 0.95rem/1 ui-sans-serif, system-ui, sans-serif;
   transition:
     background 140ms ease,
     border-color 140ms ease,
-    box-shadow 140ms ease,
-    transform 140ms ease;
+    box-shadow 140ms ease;
 }
 
 button + button {
@@ -289,32 +293,30 @@ button + button {
 }
 
 button:hover {
-  border-color: var(--accent-dark);
-  background: var(--accent-dark);
-  box-shadow: 0 0.5rem 1rem color-mix(in srgb, var(--accent) 20%, transparent);
-  transform: translateY(-1px);
+  border-color: var(--control-border);
+  background: color-mix(in srgb, var(--control) 88%, var(--accent));
+  box-shadow: none;
 }
 
 button:focus-visible {
-  outline: 0.2rem solid var(--focus);
+  outline: 0.2rem solid var(--accent);
   outline-offset: 0.2rem;
 }
 
 button:disabled {
   border-color: var(--line);
-  color: var(--muted-ink);
-  background: var(--page);
+  color: var(--muted);
+  background: var(--background);
   box-shadow: none;
   cursor: not-allowed;
-  transform: none;
 }
 
 article {
   margin-top: 1rem;
   padding: 1.25rem;
   border: 1px solid var(--line);
-  border-radius: 0.9rem;
-  background: var(--field);
+  border-radius: 0;
+  background: var(--raised);
 }
 
 article p {
@@ -325,14 +327,14 @@ dialog {
   width: min(38rem, calc(100% - 2rem));
   padding: 2rem;
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: 0;
   color: var(--ink);
-  background: var(--paper);
-  box-shadow: 0 1.5rem 4rem rgb(24 34 29 / 24%);
+  background: var(--surface);
+  box-shadow: 0 1.5rem 4rem color-mix(in srgb, var(--ink) 24%, transparent);
 }
 
 dialog::backdrop {
-  background: rgb(24 34 29 / 58%);
+  background: color-mix(in srgb, var(--ink) 58%, transparent);
 }
 
 @media (max-width: 36rem) {
@@ -368,27 +370,6 @@ dialog::backdrop {
 .app-shell:has(.tutor-workspace) .app-footer { display: none; }
 
 .tutor-workspace {
-  --tutor-bg: #eef3f9;
-  --tutor-surface: rgb(250 252 255 / 94%);
-  --tutor-raised: #ffffff;
-  --tutor-ink: #122239;
-  --tutor-muted: #607086;
-  --tutor-line: #b7c6d8;
-  --tutor-major: #91a7c0;
-  --tutor-accent: #146cff;
-  --tutor-control: #122239;
-  --tutor-control-ink: #ffffff;
-  --tutor-control-border: var(--tutor-control);
-  --ink: var(--tutor-ink);
-  --muted-ink: var(--tutor-muted);
-  --page: var(--tutor-bg);
-  --paper: var(--tutor-surface);
-  --field: var(--tutor-raised);
-  --line: var(--tutor-line);
-  --line-strong: var(--tutor-major);
-  --accent: var(--tutor-accent);
-  --accent-dark: color-mix(in srgb, var(--tutor-accent) 82%, var(--tutor-ink));
-  --focus: var(--tutor-accent);
   display: grid;
   min-height: 100vh;
   grid-template-columns: 16rem minmax(0, 1fr);
@@ -396,53 +377,14 @@ dialog::backdrop {
   align-items: start;
   gap: 1rem;
   padding: 1rem;
-  color: var(--tutor-ink);
-  background-color: var(--tutor-bg);
+  color: var(--ink);
+  background-color: var(--background);
   background-image:
-    radial-gradient(circle, color-mix(in srgb, var(--tutor-major) 55%, transparent) 1px, transparent 1.2px),
-    radial-gradient(circle, color-mix(in srgb, var(--tutor-line) 45%, transparent) 0.7px, transparent 0.9px);
+    radial-gradient(circle, color-mix(in srgb, var(--line-strong) 55%, transparent) 1px, transparent 1.2px),
+    radial-gradient(circle, color-mix(in srgb, var(--line) 45%, transparent) 0.7px, transparent 0.9px);
   background-size: 140px 140px, 28px 28px;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
-
-:root[data-theme="dark"] .tutor-workspace {
-  --tutor-bg: #07111f;
-  --tutor-surface: rgb(11 25 43 / 94%);
-  --tutor-raised: #102741;
-  --tutor-ink: #edf5ff;
-  --tutor-muted: #8fa6bf;
-  --tutor-line: #1e3d5d;
-  --tutor-major: #315779;
-  --tutor-accent: #9cbcff;
-  --tutor-control: #171e2b;
-  --tutor-control-border: var(--tutor-control-ink);
-}
-
-.tutor-workspace button {
-  border-color: var(--tutor-control-border);
-  border-radius: 0;
-  color: var(--tutor-control-ink);
-  background: var(--tutor-control);
-  box-shadow: none;
-}
-
-.tutor-workspace button:hover {
-  border-color: var(--tutor-control-border);
-  background: color-mix(in srgb, var(--tutor-control) 88%, var(--tutor-accent));
-  box-shadow: none;
-}
-
-.tutor-workspace button:disabled {
-  border-color: var(--tutor-line);
-  color: var(--tutor-muted);
-  background: var(--tutor-bg);
-}
-
-.tutor-workspace input,
-.tutor-workspace select,
-.tutor-workspace textarea,
-.tutor-workspace article,
-.tutor-workspace dialog { border-radius: 0; }
 
 .tutor-rail {
   position: sticky;
@@ -451,22 +393,22 @@ dialog::backdrop {
   min-height: calc(100vh - 2rem);
   flex-direction: column;
   padding: 1.25rem;
-  border: 1px solid var(--tutor-line);
-  background: var(--tutor-surface);
-  box-shadow: 0 1rem 3rem rgb(5 15 29 / 18%);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 1rem 3rem color-mix(in srgb, var(--ink) 18%, transparent);
 }
 
 .tutor-identity {
   display: flex;
   justify-content: space-between;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--tutor-line);
+  border-bottom: 1px solid var(--line);
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.16em;
 }
 
-.tutor-identity strong { color: var(--tutor-accent); }
+.tutor-identity strong { color: var(--accent); }
 .tutor-rail nav { display: grid; gap: 0.35rem; margin-top: 1.25rem; }
 .tutor-rail nav button {
   display: flex;
@@ -476,43 +418,41 @@ dialog::backdrop {
   margin: 0;
   border-color: transparent;
   border-radius: 0.35rem;
-  color: var(--tutor-muted);
+  color: var(--muted);
   background: transparent;
   box-shadow: none;
   text-align: left;
-  transform: none;
 }
 
 .tutor-rail nav button:hover,
 .tutor-rail nav button[aria-current="page"] {
-  border-color: var(--tutor-line);
-  color: var(--tutor-ink);
-  background: var(--tutor-raised);
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--raised);
   box-shadow: none;
-  transform: none;
 }
 
-.tutor-rail nav button[aria-current="page"] { border-left: 3px solid var(--tutor-accent); }
+.tutor-rail nav button[aria-current="page"] { border-left: 3px solid var(--accent); }
 .tutor-rail-actions button,
-.tutor-overview button { margin: 0; transform: none; }
-.request-badge { display: grid; width: 1.5rem; height: 1.5rem; flex: 0 0 1.5rem; place-items: center; padding: 0; border: 1px solid var(--tutor-control-ink); border-radius: 50%; color: var(--tutor-control-ink); background: var(--tutor-control); line-height: 1; }
-.tutor-rail-actions { display: grid; gap: 0.35rem; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--tutor-line); }
+.tutor-overview button { margin: 0; }
+.request-badge { display: grid; width: 1.5rem; height: 1.5rem; flex: 0 0 1.5rem; place-items: center; padding: 0; border: 1px solid var(--control-ink); border-radius: 50%; color: var(--control-ink); background: var(--control); line-height: 1; }
+.tutor-rail-actions { display: grid; gap: 0.35rem; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--line); }
 .tutor-work-area { min-width: 0; }
 .tutor-day { padding: clamp(2.5rem, 7vw, 5.5rem) clamp(1rem, 4vw, 3rem) 2rem; }
-.tutor-day h1 { color: var(--tutor-ink); font: 400 clamp(3.5rem, 7vw, 6.5rem)/0.9 Georgia, serif; letter-spacing: -0.06em; }
+.tutor-day h1 { color: var(--ink); font: 400 clamp(3.5rem, 7vw, 6.5rem)/0.9 Georgia, serif; letter-spacing: -0.06em; }
 
 .tutor-metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  border: 1px solid var(--tutor-line);
-  background: var(--tutor-surface);
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 
-.tutor-metrics > div { display: grid; gap: 0.65rem; min-height: 7rem; padding: 1.25rem; border-right: 1px solid var(--tutor-line); }
+.tutor-metrics > div { display: grid; gap: 0.65rem; min-height: 7rem; padding: 1.25rem; border-right: 1px solid var(--line); }
 .tutor-metrics > div:last-child { border-right: 0; }
 .tutor-metrics span,
-.tutor-overview-grid article > span { color: var(--tutor-muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.tutor-metrics strong { align-self: end; color: var(--tutor-ink); font: 400 2.5rem/1 Georgia, serif; }
+.tutor-overview-grid article > span { color: var(--muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.tutor-metrics strong { align-self: end; color: var(--ink); font: 400 2.5rem/1 Georgia, serif; }
 
 .tutor-overview-grid {
   display: grid;
@@ -527,52 +467,52 @@ dialog::backdrop {
   min-height: 14rem;
   margin: 0;
   padding: 1.35rem;
-  border: 1px solid var(--tutor-line);
+  border: 1px solid var(--line);
   border-radius: 0;
-  color: var(--tutor-ink);
-  background: var(--tutor-surface);
+  color: var(--ink);
+  background: var(--surface);
   box-shadow: none;
 }
 
 .tutor-overview-grid article header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.tutor-overview-grid h2 { margin: 0; color: var(--tutor-ink); font: 700 0.8rem/1.2 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; }
+.tutor-overview-grid h2 { margin: 0; color: var(--ink); font: 700 0.8rem/1.2 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.05em; }
 .tutor-overview-grid button { min-height: auto; padding: 0.45rem 0.6rem; font-size: 0.7rem; }
 .overview-upcoming { grid-area: upcoming; }
 .overview-next { grid-area: next; display: flex; flex-direction: column; }
 .overview-students { grid-area: students; }
 .overview-requests { grid-area: requests; }
-.overview-next > strong { margin-top: 2rem; color: var(--tutor-accent); font: 400 2.5rem/1 Georgia, serif; }
+.overview-next > strong { margin-top: 2rem; color: var(--accent); font: 400 2.5rem/1 Georgia, serif; }
 .overview-next > h2 { margin-top: 0.75rem; font: 400 1.25rem/1.1 Georgia, serif; letter-spacing: 0; }
-.overview-next > p { color: var(--tutor-muted); }
-.booking-ledger > div { display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; align-items: center; gap: 0.85rem; padding: 1.2rem 0; border-top: 1px solid var(--tutor-line); }
+.overview-next > p { color: var(--muted); }
+.booking-ledger > div { display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; align-items: center; gap: 0.85rem; padding: 1.2rem 0; border-top: 1px solid var(--line); }
 .booking-ledger time { font: 400 1.1rem/1 Georgia, serif; }
 .booking-ledger span { display: grid; gap: 0.3rem; min-width: 0; }
-.booking-ledger small { overflow: hidden; color: var(--tutor-muted); text-overflow: ellipsis; white-space: nowrap; }
-.booking-ledger i { color: var(--tutor-accent); font-size: 0.65rem; font-style: normal; }
+.booking-ledger small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.booking-ledger i { color: var(--accent); font-size: 0.65rem; font-style: normal; }
 .overview-students ul { display: grid; margin: 0; padding: 0; list-style: none; }
-.overview-students li { padding: 0.85rem 0; border-top: 1px solid var(--tutor-line); font-family: Georgia, serif; }
+.overview-students li { padding: 0.85rem 0; border-top: 1px solid var(--line); font-family: Georgia, serif; }
 .overview-requests dl { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; }
-.overview-requests dl div { display: grid; gap: 0.75rem; padding: 1rem; border: 1px solid var(--tutor-line); border-right: 0; }
-.overview-requests dl div:last-child { border-right: 1px solid var(--tutor-line); }
-.overview-requests dt { color: var(--tutor-muted); font-size: 0.7rem; }
+.overview-requests dl div { display: grid; gap: 0.75rem; padding: 1rem; border: 1px solid var(--line); border-right: 0; }
+.overview-requests dl div:last-child { border-right: 1px solid var(--line); }
+.overview-requests dt { color: var(--muted); font-size: 0.7rem; }
 .overview-requests dd { margin: 0; font: 400 2rem/1 Georgia, serif; }
-.overview-empty { color: var(--tutor-muted); }
-.tutor-overview-state { display: grid; min-height: calc(100vh - 2rem); place-content: center; justify-items: center; color: var(--tutor-ink); }
+.overview-empty { color: var(--muted); }
+.tutor-overview-state { display: grid; min-height: calc(100vh - 2rem); place-content: center; justify-items: center; color: var(--ink); }
 
 .tutor-detail-grid,
 .tutor-requests {
   display: grid;
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--tutor-line);
-  color: var(--tutor-ink);
-  background: var(--tutor-surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--surface);
 }
 .tutor-detail-grid { grid-template-columns: minmax(18rem, 0.8fr) minmax(0, 1.3fr); }
 .tutor-requests { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tutor-work-area h2,
 .tutor-work-area h3,
-.tutor-work-area label { color: var(--tutor-ink); }
+.tutor-work-area label { color: var(--ink); }
 
 @media (max-width: 70rem) {
   .tutor-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "upcoming upcoming" "next students" "requests requests"; }
@@ -585,7 +525,7 @@ dialog::backdrop {
   .tutor-identity { padding: 0; border: 0; gap: 0.5rem; }
   .tutor-rail nav { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 0.25rem; margin: 0; }
   .tutor-rail nav button { padding: 0.55rem 0.65rem; }
-  .tutor-rail nav button[aria-current="page"] { border-left-width: 1px; border-bottom: 3px solid var(--tutor-accent); }
+  .tutor-rail nav button[aria-current="page"] { border-left-width: 1px; border-bottom: 3px solid var(--accent); }
   .tutor-rail-actions { display: flex; margin: 0; padding: 0; border: 0; }
   .tutor-rail-actions button + button { margin: 0; }
 }
@@ -599,12 +539,12 @@ dialog::backdrop {
   .tutor-day { padding: 3rem 0.5rem 1.5rem; }
   .tutor-metrics { grid-template-columns: repeat(2, 1fr); }
   .tutor-metrics > div:nth-child(2) { border-right: 0; }
-  .tutor-metrics > div:nth-child(-n+2) { border-bottom: 1px solid var(--tutor-line); }
+  .tutor-metrics > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .tutor-overview-grid { grid-template-columns: 1fr; grid-template-areas: "upcoming" "next" "requests" "students"; }
   .booking-ledger > div { grid-template-columns: 4.5rem minmax(0, 1fr); }
   .booking-ledger i { grid-column: 2; }
   .overview-requests dl { grid-template-columns: 1fr; }
-  .overview-requests dl div { border-right: 1px solid var(--tutor-line); border-bottom: 0; }
-  .overview-requests dl div:last-child { border-bottom: 1px solid var(--tutor-line); }
+  .overview-requests dl div { border-right: 1px solid var(--line); border-bottom: 0; }
+  .overview-requests dl div:last-child { border-bottom: 1px solid var(--line); }
   .tutor-requests { grid-template-columns: 1fr; padding: 0.75rem; }
 }

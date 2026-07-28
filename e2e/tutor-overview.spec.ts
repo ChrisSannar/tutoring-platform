@@ -98,6 +98,9 @@ test("Tutor Overview shows empty states without overflow across themes and width
   await expect(page.getByText("No Students yet.")).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Tutor workspace" });
   await expect(navigation.getByRole("button")).toHaveCount(4);
+  const overviewButton = navigation.getByRole("button", { name: "Overview" });
+  await overviewButton.focus();
+  await expect(overviewButton).toHaveCSS("outline-color", "rgb(20, 108, 255)");
   for (const width of [390, 800, 1280]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(navigation).toBeVisible();

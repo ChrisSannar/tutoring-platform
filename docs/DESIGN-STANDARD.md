@@ -1,18 +1,18 @@
 # Constellation Design Standard
 
-Status: Approved for future application-wide adoption  
+Status: Approved for application-wide adoption
 Reference implementation: authenticated `/tutor` workspace  
 Prototype reference: `/style-prototype/10`
 
 ## Scope
 
-Constellation is the visual standard for future work across the application. This
-document defines the approved language; it does not authorize or include changes to
-the Landing, Student, Invitation, authentication, or checkout surfaces.
+Constellation is the visual standard across the application. Application-wide
+adoption is authorized through the rollout issues for Landing, Student, Invitation,
+authentication, and checkout surfaces.
 
-When adoption begins, preserve each surface's behavior, semantics, and information
-hierarchy. Apply the standard through shared theme tokens and scoped component rules,
-not by copying prototype markup or introducing a component framework.
+Adopt it one surface at a time while preserving each surface's behavior, semantics,
+and information hierarchy. Apply the standard through shared theme tokens and scoped
+component rules, not by copying prototype markup or introducing a component framework.
 
 ## Principles
 
@@ -56,8 +56,9 @@ Full workspace surfaces use a subtle dotted field:
 - Minor dots repeat every `28px` using `line` at approximately 45% strength.
 - Major dots repeat every `140px` using `line-strong` at approximately 55% strength.
 - Dots remain visible behind surfaces without competing with text or controls.
-- Content pages that do not use a full workspace may omit the dotted field, but keep
-  the same background and surface hierarchy.
+- Full workspaces use the dotted field.
+- Focused access and payment pages use the quieter token-compatible background without
+  dots while keeping the same background and surface hierarchy.
 
 ## Typography
 
@@ -128,4 +129,3 @@ Future implementation work is complete only when it verifies:
 - Button, input, badge, and surface colors from shared tokens.
 - No horizontal overflow at desktop, tablet, and `390px` widths.
 - Existing workflows and nonvisual behavior remain unchanged.
-
