@@ -202,10 +202,58 @@ test("Invitee opens a personalized setup page without the Private Tutor Note", a
 
   await page.goto(invitationLink);
 
+  const invitationSurface = page.locator("main.login-authentication");
+  await expect(invitationSurface).toBeVisible();
   await expect(page.getByLabel("Bound email")).toHaveValue(
     "invitee@example.com",
   );
   await expect(page.getByLabel("Bound email")).toBeEditable({ editable: false });
+
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => localStorage.setItem("theme", value), theme);
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+    for (const width of [390, 800, 1280]) {
+      await page.setViewportSize({ width, height: 800 });
+      await expect(invitationSurface).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+  }
+
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const displayName = page.getByLabel("Display name");
+  await expect(displayName).toBeFocused();
+  expect(await displayName.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe("none");
+});
+
+test("Invitation loading and unavailable states share the access surface", async ({
+  page,
+}) => {
+  for (const theme of ["light", "dark"]) {
+    await page.goto("/");
+    await page.evaluate((value) => localStorage.setItem("theme", value), theme);
+    let releaseResponse!: () => void;
+    const heldResponse = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    const invitationRequest = `**/api/invitations/state-${theme}`;
+    await page.route(invitationRequest, async (route) => {
+      await heldResponse;
+      await route.fulfill({ status: 404 });
+    });
+
+    await page.goto(`/invite/state-${theme}`);
+    const invitationSurface = page.locator("main.login-authentication");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    await expect(invitationSurface).toContainText("Loading Invitation…");
+    releaseResponse();
+    await expect(invitationSurface.getByRole("heading", {
+      name: "Invitation unavailable",
+    })).toBeVisible();
+    await page.unroute(invitationRequest);
+  }
 });
 
 test("Tutor corrects an active Invitation email", async ({ page }) => {

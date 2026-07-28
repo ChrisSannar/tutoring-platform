@@ -44,12 +44,12 @@ export function InviteeSetup() {
 
   if (unavailable) {
     return (
-      <main><section className="hero"><h1>Invitation unavailable</h1></section></main>
+      <main className="login-authentication"><h1>Invitation unavailable</h1></main>
     );
   }
-  if (!invitation) return <main><p>Loading Invitation…</p></main>;
+  if (!invitation) return <main className="login-authentication"><p>Loading Invitation…</p></main>;
   return (
-    <main><section className="hero">
+    <main className="login-authentication">
       <p className="eyebrow">Your personal Invitation</p>
       <h1>Create your Student account</h1>
       <form onSubmit={createAccount}>
@@ -70,6 +70,6 @@ export function InviteeSetup() {
         />
         <button type="submit">Create Account</button>
       </form>
-    </section></main>
+    </main>
   );
 }

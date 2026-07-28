@@ -1,7 +1,7 @@
 # 05 — Redesign Invitation setup
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by: 04
 
 ## What to build
@@ -16,11 +16,21 @@ single-task Constellation surface using shared primitives.
 
 ## Acceptance
 
-- [ ] Invitation setup and unavailable/loading states work in both themes.
-- [ ] Keyboard focus remains visible.
-- [ ] No horizontal overflow at `390px`, `800px`, or `1280px`.
-- [ ] Frontend build and closest critical-journey Playwright coverage pass.
-- [ ] One commit.
+- [x] Invitation setup and unavailable/loading states work in both themes.
+- [x] Keyboard focus remains visible.
+- [x] No horizontal overflow at `390px`, `800px`, or `1280px`.
+- [x] Frontend build and closest critical-journey Playwright coverage pass.
+- [x] One commit.
 
 ## Comments
 
+## Answer
+
+- Reused `main.login-authentication` for setup, loading, and unavailable states;
+  no new wrapper, dependency, stylesheet rule, copy, action, or API behavior.
+- `bun run build` passed.
+- `bun run test:e2e -- e2e/tutor-authentication.spec.ts
+  e2e/critical-journey.spec.ts` passed: 9 tests.
+- Playwright checks both themes for every Invitation state, visible keyboard focus
+  on Display name, and no horizontal overflow at `390px`, `800px`, or `1280px`.
+- Kept as one issue-scoped change for the rollout commit.
