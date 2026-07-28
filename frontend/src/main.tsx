@@ -1,7 +1,10 @@
+/// <reference types="vite/client" />
+
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { Application } from "./app/Application";
+import { DevTools } from "./dev/DevTools";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -38,6 +41,7 @@ function App() {
           {darkMode ? "Light mode" : "Dark mode"}
         </button>
       </footer>
+      {import.meta.env.DEV ? <DevTools /> : null}
     </div>
   );
 }

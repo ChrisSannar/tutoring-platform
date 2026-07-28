@@ -13,6 +13,7 @@ test("Prospect can view the Tutor landing page while the service is live", async
   await expect(
     page.getByRole("heading", { name: "Personal tutoring, thoughtfully planned." }),
   ).toBeVisible();
+  await expect(page.getByText("Dev tools")).toHaveCount(0);
 });
 
 test("retired Invitation Claim browser route is unavailable", async ({ page }) => {
