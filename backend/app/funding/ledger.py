@@ -1,12 +1,14 @@
 from sqlalchemy import text
 
+from app.bookings import reconcile_past_bookings
 from app.database import db_connection
 
 
 def list_credit_ledger(
-    database_url: str, student_id: str
+    database_url: str, student_id: str, now
 ) -> list[dict[str, object]] | None:
-    with db_connection(database_url, mode="read") as connection:
+    with db_connection(database_url, mode="immediate") as connection:
+        reconcile_past_bookings(connection, now)
         if connection.execute(
             text("SELECT 1 FROM accounts WHERE id = :id AND role = 'student'"),
             {"id": student_id},

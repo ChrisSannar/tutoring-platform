@@ -24,8 +24,6 @@ async def test_tutor_views_and_updates_authoritative_business_settings(testbed) 
             "X-CSRF-Token": csrf_token,
         },
         json={
-            "currency": "USD",
-            "session_price_cents": 8250,
             "tutor_timezone": "America/New_York",
             "default_meeting_details": "https://meet.example.com/avery",
         },
@@ -33,14 +31,11 @@ async def test_tutor_views_and_updates_authoritative_business_settings(testbed) 
     current = await client.get("/api/tutor/settings")
 
     assert initial.json() == {
-        "currency": "USD",
-        "session_price_cents": 7500,
         "tutor_timezone": "America/Chicago",
         "default_meeting_details": None,
     }
     assert updated.status_code == 200
     assert current.json() == updated.json()
-    assert current.json()["session_price_cents"] == 8250
 
 
 @pytest.mark.anyio
@@ -50,8 +45,6 @@ async def test_settings_reject_invalid_or_untrusted_updates_without_partial_chan
     client, csrf_token = await authenticated_tutor(testbed)
     database_url = testbed.database_url("tutor-settings")
     valid_payload = {
-        "currency": "USD",
-        "session_price_cents": 8250,
         "tutor_timezone": "America/New_York",
         "default_meeting_details": "Remote details",
     }
@@ -69,13 +62,13 @@ async def test_settings_reject_invalid_or_untrusted_updates_without_partial_chan
         },
         json={**valid_payload, "tutor_timezone": "Central Standard Time"},
     )
-    fractional_price = await client.put(
+    obsolete_price = await client.put(
         "/api/tutor/settings",
         headers={
             "Origin": "http://testserver",
             "X-CSRF-Token": csrf_token,
         },
-        json={**valid_payload, "session_price_cents": 82.5},
+        json={**valid_payload, "session_price_cents": 8250},
     )
     unchanged = await client.get("/api/tutor/settings")
     testbed.seed(
@@ -100,8 +93,7 @@ async def test_settings_reject_invalid_or_untrusted_updates_without_partial_chan
 
     assert missing_origin.status_code == 403
     assert invalid_timezone.status_code == 422
-    assert fractional_price.status_code == 422
-    assert unchanged.json()["session_price_cents"] == 7500
+    assert obsolete_price.status_code == 422
     assert unchanged.json()["tutor_timezone"] == "America/Chicago"
     assert student_read.status_code == 401
     assert student_write.status_code == 403

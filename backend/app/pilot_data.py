@@ -46,14 +46,9 @@ def delete_student_pilot_data(
             "SELECT inquiry_id FROM invitations WHERE claimed_account_id = :student_account_id AND inquiry_id IS NOT NULL"
         ), {"student_account_id": student_account_id}).scalars().all()
         for statement in [
-            "DELETE FROM refund_evidence WHERE refund_request_id IN (SELECT id FROM refund_requests WHERE student_account_id = :student_account_id)",
-            "DELETE FROM refund_requests WHERE student_account_id = :student_account_id",
             "DELETE FROM lesson_notes WHERE booking_id IN (SELECT id FROM bookings WHERE student_account_id = :student_account_id)",
-            "DELETE FROM payment_evidence WHERE booking_id IN (SELECT id FROM bookings WHERE student_account_id = :student_account_id)",
             "DELETE FROM booking_change_receipts WHERE booking_id IN (SELECT id FROM bookings WHERE student_account_id = :student_account_id)",
             "DELETE FROM bookings WHERE student_account_id = :student_account_id",
-            "DELETE FROM checkout_sessions WHERE student_account_id = :student_account_id",
-            "DELETE FROM slot_holds WHERE student_account_id = :student_account_id",
             "DELETE FROM credit_ledger_entries WHERE student_account_id = :student_account_id",
             "DELETE FROM login_requests WHERE account_id = :student_account_id",
             "DELETE FROM invitations WHERE claimed_account_id = :student_account_id",

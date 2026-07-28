@@ -21,8 +21,7 @@ def occupied_intervals(
         text(
             "SELECT start_at, end_at FROM blocked_times "
             "UNION ALL SELECT start_at, end_at FROM bookings "
-            "WHERE status = 'upcoming' AND (:booking IS NULL OR id != :booking) "
-            "UNION ALL SELECT start_at, end_at FROM slot_holds WHERE expires_at > :now"
+            "WHERE status = 'upcoming' AND (:booking IS NULL OR id != :booking)"
         ),
         {"booking": exclude_booking_id, "now": utc_aware(now)},
     ).all()

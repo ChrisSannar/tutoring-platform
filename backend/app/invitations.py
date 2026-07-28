@@ -361,12 +361,13 @@ def claim_direct_invitation(
                 text(
                     "INSERT INTO credit_ledger_entries (id, student_account_id, "
                     "event_type, quantity, reason, idempotency_key, created_at) VALUES "
-                    "(:id, :student, 'promotion_granted', 1, NULL, :key, :now)"
+                    "(:id, :student, 'credit_invitation_grant', 1, "
+                    "'Invitation Claim', :key, :now)"
                 ),
                 {
                     "id": str(uuid4()),
                     "student": account_id,
-                    "key": f"invitation:{invitation['id']}:promotion",
+                    "key": f"invitation:{invitation['id']}:credit",
                     "now": now,
                 },
             )

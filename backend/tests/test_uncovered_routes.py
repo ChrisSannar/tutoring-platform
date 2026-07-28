@@ -69,3 +69,35 @@ async def test_invite_link_opens_the_invitation(testbed) -> None:
     assert created.status_code == 201
     assert opened.status_code == 200
     assert opened.json()["email"] == "invitee@example.com"
+
+
+@pytest.mark.anyio
+async def test_payment_routes_and_schema_are_absent(testbed) -> None:
+    client, _ = await authenticated_tutor(testbed)
+    database_url = testbed.database_url("uncovered")
+
+    responses = [
+        await client.post("/api/student/checkouts"),
+        await client.post("/api/stripe/webhook"),
+        await client.get("/api/student/refund-requests"),
+        await client.get("/api/tutor/refund-requests"),
+    ]
+    tables = {
+        row[0]
+        for row in testbed.fetch_all(
+            database_url,
+            "SELECT name FROM sqlite_master WHERE type = 'table'",
+        )
+    }
+
+    assert {response.status_code for response in responses} == {404}
+    assert tables.isdisjoint(
+        {
+            "slot_holds",
+            "checkout_sessions",
+            "stripe_events",
+            "payment_evidence",
+            "refund_requests",
+            "refund_evidence",
+        }
+    )

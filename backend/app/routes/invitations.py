@@ -77,7 +77,9 @@ async def claim_original_invitation(
 async def view_student_funding(request: Request) -> StudentFundingResponse:
     raw_session = require_session(request, "student")
     summary = student_funding_summary(
-        context_from(request).settings.database_url, raw_session
+        context_from(request).settings.database_url,
+        raw_session,
+        context_from(request).now(),
     )
     return StudentFundingResponse.model_validate(summary)
 

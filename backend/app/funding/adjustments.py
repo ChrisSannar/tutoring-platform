@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from sqlalchemy import text
 
+from app.bookings import reconcile_past_bookings
 from app.database import db_connection
 from app.funding.errors import CreditAdjustmentConflict
 
@@ -13,8 +14,10 @@ def adjust_session_credits(
     quantity: int,
     reason: str,
     idempotency_key: str,
+    now,
 ) -> dict[str, int]:
-    with db_connection(database_url) as connection:
+    with db_connection(database_url, mode="immediate") as connection:
+        reconcile_past_bookings(connection, now)
         existing = connection.execute(
             text(
                 "SELECT student_account_id, quantity, reason FROM "
@@ -57,7 +60,7 @@ def adjust_session_credits(
                 "quantity": quantity,
                 "reason": reason,
                 "key": idempotency_key,
-                "now": datetime.now(timezone.utc),
+                "now": now,
             },
         )
         return {"session_credits": balance + quantity}

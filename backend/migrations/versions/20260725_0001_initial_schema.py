@@ -9,14 +9,8 @@ depends_on = None
 
 
 TABLES = [
-    "refund_evidence",
-    "refund_requests",
-    "payment_evidence",
-    "stripe_events",
-    "checkout_sessions",
     "lesson_notes",
     "booking_change_receipts",
-    "slot_holds",
     "bookings",
     "tutor_overrides",
     "blocked_times",
@@ -101,18 +95,14 @@ CREATE TABLE credit_ledger_entries (
     op.execute("""
 CREATE TABLE tutor_settings (
 	id INTEGER NOT NULL,
-	currency VARCHAR(3) NOT NULL,
-	session_price_cents INTEGER NOT NULL,
 	tutor_timezone VARCHAR(100) NOT NULL,
 	default_meeting_details TEXT,
 	PRIMARY KEY (id),
-	CONSTRAINT ck_tutor_settings_singleton CHECK (id = 1),
-	CONSTRAINT ck_tutor_settings_usd CHECK (currency = 'USD'),
-	CONSTRAINT ck_tutor_settings_positive_price CHECK (session_price_cents > 0)
+	CONSTRAINT ck_tutor_settings_singleton CHECK (id = 1)
 )""")
     op.execute(
-        "INSERT INTO tutor_settings (id, currency, session_price_cents, tutor_timezone) "
-        "VALUES (1, 'USD', 7500, 'America/Chicago')"
+        "INSERT INTO tutor_settings (id, tutor_timezone) "
+        "VALUES (1, 'America/Chicago')"
     )
     op.execute("""
 CREATE TABLE login_requests (
@@ -164,23 +154,13 @@ CREATE TABLE bookings (
 	funding_kind VARCHAR(24) NOT NULL,
 	focus VARCHAR(500),
 	meeting_details_snapshot TEXT,
-	price_cents_snapshot INTEGER,
-	currency_snapshot VARCHAR(3),
 	idempotency_key VARCHAR(200) NOT NULL,
 	created_at DATETIME NOT NULL,
 	PRIMARY KEY (id),
 	FOREIGN KEY(student_account_id) REFERENCES accounts (id),
+	CHECK (status IN ('upcoming', 'past', 'cancelled')),
+	CHECK (funding_kind IN ('session_credit', 'complimentary')),
 	UNIQUE (idempotency_key)
-)""")
-    op.execute("""
-CREATE TABLE slot_holds (
-	id VARCHAR(36) NOT NULL,
-	student_account_id VARCHAR(36) NOT NULL,
-	start_at DATETIME NOT NULL,
-	end_at DATETIME NOT NULL,
-	expires_at DATETIME NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(student_account_id) REFERENCES accounts (id)
 )""")
     op.execute("""
 CREATE TABLE booking_change_receipts (
@@ -205,86 +185,6 @@ CREATE TABLE lesson_notes (
 	PRIMARY KEY (id),
 	FOREIGN KEY(booking_id) REFERENCES bookings (id),
 	UNIQUE (booking_id)
-)""")
-    op.execute("""
-CREATE TABLE checkout_sessions (
-	id VARCHAR(36) NOT NULL,
-	provider_session_id VARCHAR(200) NOT NULL,
-	checkout_url TEXT NOT NULL,
-	student_account_id VARCHAR(36) NOT NULL,
-	slot_hold_id VARCHAR(36) NOT NULL,
-	start_at DATETIME NOT NULL,
-	end_at DATETIME NOT NULL,
-	amount_cents INTEGER NOT NULL,
-	currency VARCHAR(3) NOT NULL,
-	focus VARCHAR(500),
-	meeting_details_snapshot TEXT,
-	tutor_timezone_snapshot VARCHAR(100) NOT NULL,
-	status VARCHAR(24) NOT NULL,
-	idempotency_key VARCHAR(200) NOT NULL,
-	expires_at DATETIME NOT NULL,
-	created_at DATETIME NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(student_account_id) REFERENCES accounts (id),
-	UNIQUE (student_account_id, idempotency_key),
-	UNIQUE (provider_session_id),
-	UNIQUE (slot_hold_id)
-)""")
-    op.execute("""
-CREATE TABLE stripe_events (
-	provider_event_id VARCHAR(200) NOT NULL,
-	outcome VARCHAR(24) NOT NULL,
-	created_at DATETIME NOT NULL,
-	PRIMARY KEY (provider_event_id)
-)""")
-    op.execute("""
-CREATE TABLE payment_evidence (
-	id VARCHAR(36) NOT NULL,
-	booking_id VARCHAR(36) NOT NULL,
-	checkout_session_id VARCHAR(200) NOT NULL,
-	provider_payment_id VARCHAR(200) NOT NULL,
-	provider_event_id VARCHAR(200) NOT NULL,
-	amount_cents INTEGER NOT NULL,
-	currency VARCHAR(3) NOT NULL,
-	created_at DATETIME NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(booking_id) REFERENCES bookings (id),
-	UNIQUE (booking_id),
-	UNIQUE (checkout_session_id),
-	UNIQUE (provider_payment_id)
-)""")
-    op.execute("""
-CREATE TABLE refund_requests (
-	id VARCHAR(36) NOT NULL,
-	booking_id VARCHAR(36) NOT NULL,
-	student_account_id VARCHAR(36) NOT NULL,
-	payment_evidence_id VARCHAR(36) NOT NULL,
-	amount_cents INTEGER NOT NULL,
-	currency VARCHAR(3) NOT NULL,
-	status VARCHAR(24) NOT NULL,
-	idempotency_key VARCHAR(200) NOT NULL,
-	created_at DATETIME NOT NULL,
-	reviewed_at DATETIME,
-	PRIMARY KEY (id),
-	FOREIGN KEY(booking_id) REFERENCES bookings (id),
-	FOREIGN KEY(student_account_id) REFERENCES accounts (id),
-	FOREIGN KEY(payment_evidence_id) REFERENCES payment_evidence (id),
-	UNIQUE (student_account_id, idempotency_key),
-	UNIQUE (booking_id),
-	UNIQUE (payment_evidence_id)
-)""")
-    op.execute("""
-CREATE TABLE refund_evidence (
-	id VARCHAR(36) NOT NULL,
-	refund_request_id VARCHAR(36) NOT NULL,
-	provider_refund_id VARCHAR(200) NOT NULL,
-	amount_cents INTEGER NOT NULL,
-	currency VARCHAR(3) NOT NULL,
-	created_at DATETIME NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(refund_request_id) REFERENCES refund_requests (id),
-	UNIQUE (refund_request_id),
-	UNIQUE (provider_refund_id)
 )""")
     op.execute("""
 CREATE TABLE "invitations" (

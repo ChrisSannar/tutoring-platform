@@ -17,7 +17,7 @@ def db_connection(
     """Yield a connection, always disposing the engine.
 
     read: plain connect. write: commit on success, rollback on exception.
-    immediate: BEGIN IMMEDIATE; the caller commits/rolls back explicitly.
+    immediate: BEGIN IMMEDIATE and commit on success.
     """
     engine = create_engine(database_url)
     try:
@@ -29,6 +29,12 @@ def db_connection(
             try:
                 connection.exec_driver_sql("BEGIN IMMEDIATE")
                 yield connection
+                if connection.in_transaction():
+                    connection.commit()
+            except Exception:
+                if connection.in_transaction():
+                    connection.rollback()
+                raise
             finally:
                 connection.close()
         else:

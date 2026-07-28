@@ -94,12 +94,10 @@ class BookingResponse(BaseModel):
     end_at: datetime
     duration_minutes: Literal[60]
     tutor_timezone: str
-    funding_kind: Literal["first_session_promotion", "session_credit", "complimentary", "paid"]
+    funding_kind: Literal["session_credit", "complimentary"]
     focus: str | None
     meeting_details: str | None
-    price_cents: int
-    currency: Literal["USD"]
-    status: Literal["upcoming", "completed", "cancelled"]
+    status: Literal["upcoming", "past", "cancelled"]
 
 
 class MeetingDetailsUpdate(BaseModel):
@@ -116,10 +114,6 @@ class StudentBookingMove(BaseModel):
     start_at: datetime
 
 
-class StudentBookingCancellation(BaseModel):
-    forfeit_funding: bool
-
-
 class BookingStudent(BaseModel):
     id: str
     display_name: str
@@ -132,20 +126,6 @@ class TutorCalendarBooking(BookingResponse):
 
 class TutorCalendarResponse(BaseModel):
     bookings: list[TutorCalendarBooking]
-
-
-class CheckoutInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    start_at: datetime
-    focus: str | None = Field(default=None, max_length=500)
-
-
-class CheckoutResponse(BaseModel):
-    checkout_session_id: str
-    checkout_url: str
-    amount_cents: int
-    currency: Literal["USD"]
-    status: Literal["pending", "fulfilled", "expired", "mismatch"]
 
 
 class CreditAdjustmentRequest(BaseModel):
@@ -238,7 +218,6 @@ class DirectInvitationClaimRequest(BaseModel):
 
 
 class StudentFundingResponse(BaseModel):
-    first_session_promotion: Literal["available", "unavailable"]
     session_credits: int
 
 
@@ -393,32 +372,6 @@ class PilotDataDeletionResponse(BaseModel):
     removed: RemovedPilotDataResponse
 
 
-class RefundRequestResponse(BaseModel):
-    id: str
-    booking_id: str
-    amount_cents: int
-    currency: Literal["USD"]
-    status: Literal["pending", "declined", "refunded"]
-    created_at: datetime
-
-
-class RefundStudent(BaseModel):
-    id: str
-    display_name: str
-
-
-class TutorRefundRequestResponse(RefundRequestResponse):
-    student: RefundStudent
-
-
-class StudentRefundList(BaseModel):
-    refund_requests: list[RefundRequestResponse]
-
-
-class TutorRefundList(BaseModel):
-    refund_requests: list[TutorRefundRequestResponse]
-
-
 class TutorStudentResponse(BaseModel):
     id: str
     email: str
@@ -430,19 +383,17 @@ class TutorStudentListResponse(BaseModel):
 
 
 class StudentFundingSummary(BaseModel):
-    first_session_promotion: Literal["available", "unavailable"]
     session_credits: int
 
 
 class TutorStudentDetailResponse(TutorStudentResponse):
     funding: StudentFundingSummary
-    pending_refund_requests: list[dict[str, str]]
     upcoming_booking: dict[str, str] | None
 
 
 class TutorSettingsUpdate(BaseModel):
-    currency: Literal["USD"]
-    session_price_cents: int = Field(gt=0, le=1_000_000)
+    model_config = ConfigDict(extra="forbid")
+
     tutor_timezone: str
     default_meeting_details: str | None = Field(default=None, max_length=5000)
 

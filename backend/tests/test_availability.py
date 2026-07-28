@@ -96,7 +96,7 @@ async def test_tutor_edits_and_deletes_calendar_rules(testbed) -> None:
 
 
 @pytest.mark.anyio
-async def test_bookings_active_holds_and_policy_boundaries_remove_slots(testbed) -> None:
+async def test_bookings_and_policy_boundaries_remove_slots(testbed) -> None:
     tutor, csrf, student, database_url = await availability_clients(testbed)
     headers = {"Origin": "http://testserver", "X-CSRF-Token": csrf}
 
@@ -112,14 +112,12 @@ async def test_bookings_active_holds_and_policy_boundaries_remove_slots(testbed)
         database_url,
         "INSERT INTO bookings (id, student_account_id, start_at, end_at, status, funding_kind, idempotency_key, created_at) "
         "VALUES ('booking', 'student', '2026-07-20 14:00:00', '2026-07-20 15:00:00', 'upcoming', 'complimentary', 'booking', CURRENT_TIMESTAMP)",
-        "INSERT INTO slot_holds (id, student_account_id, start_at, end_at, expires_at) "
-        "VALUES ('hold', 'student', '2026-07-20 15:00:00', '2026-07-20 16:00:00', '2026-07-20 12:00:00')",
     )
     slots = await student.get("/api/student/bookable-slots")
 
     starts = [slot["start_at"] for slot in slots.json()["slots"]]
     assert "2026-07-20T14:00:00Z" not in starts
-    assert "2026-07-20T15:00:00Z" not in starts
+    assert "2026-07-20T15:00:00Z" in starts
     assert "2026-07-20T16:00:00Z" in starts
     assert "2026-07-19T14:00:00Z" not in starts
 

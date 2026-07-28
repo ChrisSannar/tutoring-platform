@@ -20,7 +20,7 @@ async def note_clients(testbed):
                 {"id": booking_id, "student": student_id, "start": start, "end": end, "status": status},
             )
             for booking_id, student_id, status, start, end in [
-                ("past", "student", "completed", "2026-07-17 14:00:00", "2026-07-17 15:00:00"),
+                ("past", "student", "past", "2026-07-17 14:00:00", "2026-07-17 15:00:00"),
                 ("future", "student", "upcoming", "2026-07-20 14:00:00", "2026-07-20 15:00:00"),
                 ("cancelled", "student", "cancelled", "2026-07-17 16:00:00", "2026-07-17 17:00:00"),
             ]

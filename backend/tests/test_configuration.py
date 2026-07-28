@@ -35,14 +35,14 @@ def test_non_development_requires_a_valid_invitation_encryption_key(
         )
 
 
-def test_production_payment_configuration_fails_closed() -> None:
-    with pytest.raises(ValidationError):
-        Settings(
-            environment="production",
-            database_url="sqlite:///:memory:",
-            invitation_encryption_key="a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=",
-            _env_file=None,
-        )
+def test_production_configuration_has_no_payment_requirements() -> None:
+    settings = Settings(
+        environment="production",
+        database_url="sqlite:///:memory:",
+        invitation_encryption_key="a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=",
+        _env_file=None,
+    )
+    assert not hasattr(settings, "stripe_secret_key")
 
     with pytest.raises(ValidationError):
         Settings(

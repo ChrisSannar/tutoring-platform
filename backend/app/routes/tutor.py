@@ -127,6 +127,7 @@ async def adjust_student_credits(
             adjustment.quantity,
             adjustment.reason,
             idempotency_key,
+            context_from(request).now(),
         )
     except CreditAdjustmentConflict:
         raise HTTPException(status_code=409) from None
@@ -142,7 +143,9 @@ async def view_student_credit_ledger(
 ) -> CreditLedgerResponse:
     require_session(request, "tutor")
     events = list_credit_ledger(
-        context_from(request).settings.database_url, student_id
+        context_from(request).settings.database_url,
+        student_id,
+        context_from(request).now(),
     )
     if events is None:
         raise HTTPException(status_code=404)
@@ -186,8 +189,6 @@ async def replace_tutor_settings(
     require_mutation(request, "tutor")
     settings = update_tutor_settings(
         context_from(request).settings.database_url,
-        update.currency,
-        update.session_price_cents,
         update.tutor_timezone,
         update.default_meeting_details,
     )
@@ -209,7 +210,9 @@ async def view_student_detail(
 ) -> TutorStudentDetailResponse:
     require_session(request, "tutor")
     student = get_student_detail(
-        context_from(request).settings.database_url, student_id
+        context_from(request).settings.database_url,
+        student_id,
+        context_from(request).now(),
     )
     if student is None:
         raise HTTPException(status_code=404)

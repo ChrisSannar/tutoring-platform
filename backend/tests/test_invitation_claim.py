@@ -49,7 +49,7 @@ async def active_invitation(
 
 
 @pytest.mark.anyio
-async def test_original_invitation_link_claims_a_student_session_and_promotion(
+async def test_original_invitation_link_claims_a_student_session_and_credit(
     testbed,
 ) -> None:
     client, invitation_token = await active_invitation(testbed)
@@ -75,10 +75,11 @@ async def test_original_invitation_link_claims_a_student_session_and_promotion(
     assert claimed.cookies["tutoring_session"]
     assert reopened.status_code == 404
     assert student_session.status_code == 200
-    assert funding.json() == {
-        "first_session_promotion": "available",
-        "session_credits": 0,
-    }
+    assert funding.json() == {"session_credits": 1}
+    assert testbed.fetch_one(
+        testbed.database_url("invitation-claim"),
+        "SELECT COUNT(*) FROM credit_ledger_entries WHERE event_type LIKE 'promotion_%'",
+    ) == 0
 
 
 @pytest.mark.anyio
@@ -159,10 +160,7 @@ async def test_concurrent_original_link_claims_have_exactly_one_winner(testbed) 
     funding = await winner.get("/api/student/funding")
 
     assert sorted(response.status_code for response in responses) == [200, 409]
-    assert funding.json() == {
-        "first_session_promotion": "available",
-        "session_credits": 0,
-    }
+    assert funding.json() == {"session_credits": 1}
 
 
 @pytest.mark.anyio

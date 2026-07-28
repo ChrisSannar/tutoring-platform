@@ -11,10 +11,6 @@ async def student_directory_client(testbed, role: str = "tutor"):
         "('tutor', 'tutor@example.com', 'tutor', NULL), "
         "('student-a', 'avery@example.com', 'student', 'Avery Chen'), "
         "('student-b', 'bailey@example.com', 'student', 'Bailey Jones')",
-        "INSERT INTO credit_ledger_entries (id, student_account_id, "
-        "event_type, quantity, reason, idempotency_key, created_at) VALUES "
-        "('promotion-a', 'student-a', 'promotion_granted', 1, NULL, "
-        "'promotion-a', CURRENT_TIMESTAMP)",
     )
     client = testbed.client()
     email = "tutor@example.com" if role == "tutor" else "avery@example.com"
@@ -40,11 +36,7 @@ async def test_tutor_reads_an_allowlisted_student_detail_with_bounded_summaries(
         "id": "student-a",
         "email": "avery@example.com",
         "display_name": "Avery Chen",
-        "funding": {
-            "first_session_promotion": "available",
-            "session_credits": 0,
-        },
-        "pending_refund_requests": [],
+        "funding": {"session_credits": 0},
         "upcoming_booking": None,
     }
 
@@ -84,12 +76,12 @@ async def test_tutor_adjustments_append_an_idempotent_credit_ledger(testbed) -> 
     granted = await client.post(
         "/api/tutor/students/student-a/credits",
         headers={**base_headers, "Idempotency-Key": "grant-two"},
-        json={"quantity": 2, "reason": "Prepaid tutoring package"},
+        json={"quantity": 2, "reason": "Tutor credit grant"},
     )
     retried = await client.post(
         "/api/tutor/students/student-a/credits",
         headers={**base_headers, "Idempotency-Key": "grant-two"},
-        json={"quantity": 2, "reason": "Prepaid tutoring package"},
+        json={"quantity": 2, "reason": "Tutor credit grant"},
     )
     deducted = await client.post(
         "/api/tutor/students/student-a/credits",
@@ -104,15 +96,13 @@ async def test_tutor_adjustments_append_an_idempotent_credit_ledger(testbed) -> 
     assert retried.json() == granted.json()
     assert deducted.json()["session_credits"] == 1
     assert detail.json()["funding"]["session_credits"] == 1
-    assert [event["quantity"] for event in ledger.json()["events"]] == [1, 2, -1]
+    assert [event["quantity"] for event in ledger.json()["events"]] == [2, -1]
     assert [event["event_type"] for event in ledger.json()["events"]] == [
-        "promotion_granted",
         "credit_adjustment",
         "credit_adjustment",
     ]
     assert [event["reason"] for event in ledger.json()["events"]] == [
-        None,
-        "Prepaid tutoring package",
+        "Tutor credit grant",
         "Correct duplicate grant",
     ]
 
