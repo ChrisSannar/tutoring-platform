@@ -107,6 +107,82 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(page.getByText("© 2026 Tutoring Platform")).toBeVisible();
 });
 
+test("authenticated roles stay on their own routes", async ({ browser, page }, testInfo) => {
+  await signInTutor(page);
+  await page.goto("/student", { waitUntil: "commit" });
+  await expect(page).toHaveURL(/\/tutor$/);
+
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
+  const invitation = page.getByLabel("Manual Invitation");
+  await invitation.getByLabel("Invitee email").fill(`role-routing-${Date.now()}@example.com`);
+  await invitation.getByRole("button", { name: "Create Invitation" }).click();
+
+  const studentContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+  const studentPage = await studentContext.newPage();
+  await studentPage.goto(await invitation.getByLabel("Invitation link").inputValue());
+  await studentPage.getByLabel("Display name").fill("Role Routing Student");
+  await studentPage.getByRole("button", { name: "Create Account" }).click();
+  await expect(studentPage.getByRole("heading", { name: "Student workspace" })).toBeVisible();
+  await studentPage.goto("/tutor/sign-in", { waitUntil: "commit" });
+  await expect(studentPage).toHaveURL(/\/student$/);
+  await studentContext.close();
+});
+
+test("anonymous visitors fail open on guarded routes", async ({ page }) => {
+  await page.goto("/student");
+  await expect(page.getByText("Student Session unavailable")).toBeVisible();
+  await expect(page).toHaveURL(/\/student$/);
+
+  await page.goto("/tutor/sign-in");
+  await expect(page.getByRole("heading", { name: "Tutor sign-in" })).toBeVisible();
+  await expect(page).toHaveURL(/\/tutor\/sign-in$/);
+});
+
+test("unknown session roles fail open without a redirect loop", async ({ page }) => {
+  await page.route("**/api/auth/session", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ role: "admin" }) }),
+  );
+
+  await page.goto("/tutor/sign-in");
+
+  await expect(page.getByRole("heading", { name: "Tutor sign-in" })).toBeVisible();
+  await expect(page).toHaveURL(/\/tutor\/sign-in$/);
+});
+
+test("a Student token confirmed on the Tutor route lands in the Student workspace", async ({ browser, page }, testInfo) => {
+  const email = `cross-role-confirm-${Date.now()}@example.com`;
+  await signInTutor(page);
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
+  const invitation = page.getByLabel("Manual Invitation");
+  await invitation.getByLabel("Invitee email").fill(email);
+  await invitation.getByRole("button", { name: "Create Invitation" }).click();
+
+  const studentContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+  const studentPage = await studentContext.newPage();
+  await studentPage.goto(await invitation.getByLabel("Invitation link").inputValue());
+  await studentPage.getByLabel("Display name").fill("Cross Role Student");
+  await studentPage.getByRole("button", { name: "Create Account" }).click();
+  await expect(studentPage.getByRole("heading", { name: "Student workspace" })).toBeVisible();
+
+  await studentPage.request.post("/api/auth/magic-links", { data: { email } });
+  await page.reload();
+  await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
+  const request = page.getByRole("article").filter({ hasText: email });
+  await request.getByRole("button", { name: "Generate Login Link" }).click();
+  const loginLink = await request.getByLabel("Login Link").inputValue();
+
+  // The link is opened in a fresh browser, like a real email client handoff.
+  const confirmContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+  const confirmPage = await confirmContext.newPage();
+  await confirmPage.goto(loginLink.replace("/sign-in/confirm", "/tutor/sign-in/confirm"));
+  await confirmPage.getByRole("button", { name: "Confirm sign-in" }).click();
+
+  await expect(confirmPage).toHaveURL(/\/student$/);
+  await expect(confirmPage.getByRole("heading", { name: "Student workspace" })).toBeVisible();
+  await confirmContext.close();
+  await studentContext.close();
+});
+
 test("Tutor access surface keeps theme, focus, and responsive geometry", async ({
   page,
 }) => {

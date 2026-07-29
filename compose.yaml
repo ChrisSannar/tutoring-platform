@@ -1,0 +1,28 @@
+services:
+  app:
+    image: ${TUTORING_IMAGE:-ghcr.io/chrissannar/tutoring-platform:latest}
+    pull_policy: always
+    restart: unless-stopped
+    user: "10001:10001"
+    ports:
+      - "127.0.0.1:${TUTORING_PORT:-7310}:7310"
+    environment:
+      TUTORING_ENVIRONMENT: production
+      TUTORING_DATABASE_URL: sqlite:////data/tutoring.sqlite3
+      TUTORING_APPLICATION_ORIGIN: ${TUTORING_APPLICATION_ORIGIN:?Set TUTORING_APPLICATION_ORIGIN}
+      TUTORING_INVITATION_ENCRYPTION_KEY: ${TUTORING_INVITATION_ENCRYPTION_KEY:?Set TUTORING_INVITATION_ENCRYPTION_KEY}
+    volumes:
+      - tutoring_data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7310/api/ready', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+volumes:
+  tutoring_data:

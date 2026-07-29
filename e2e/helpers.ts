@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 export async function signInTutor(page: Page): Promise<string> {
+  await page.context().clearCookies();
   await page.goto("/tutor/sign-in");
   await page.getByLabel("Email address").fill("tutor@example.com");
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
