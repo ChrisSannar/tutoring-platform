@@ -133,7 +133,7 @@ class Testbed:
         self, database_url: str, email: str = "tutor@example.com", *, check: bool = True
     ):
         return subprocess.run(
-            [sys.executable, "-m", "app.bootstrap_tutor", email],
+            [sys.executable, "-m", "app.account_commands", "bootstrap", "tutor", email],
             cwd="backend",
             env={
                 **os.environ,

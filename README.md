@@ -16,7 +16,7 @@ Prerequisites: Bun 1.3+, Python 3.12+, and `uv`.
 bun run setup
 bun run install:e2e
 bun run migrate:dev
-bun run tutor:bootstrap -- tutor@example.com
+UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache uv run --project backend python -m app.account_commands bootstrap tutor tutor@example.com
 ```
 
 Start the backend and frontend in separate terminals:
@@ -92,13 +92,31 @@ origin with no trailing slash, then launch:
 ```bash
 make up
 make status
-make bootstrap EMAIL=tutor@example.com
-make login-link
+make tutor-bootstrap EMAIL=tutor@example.com
+make tutor-magic-link EMAIL=tutor@example.com
 ```
 
-`make login-link` prints a relative Login Link. Append it to
+The magic-link command prints a relative Login Link. Append it to
 `TUTORING_APPLICATION_ORIGIN` and deliver it privately. Opening the link still requires
 the Tutor to select its confirmation action.
+
+### Pilot accounts
+
+These commands operate on the database inside the running container:
+
+```bash
+make tutor-bootstrap EMAIL=tutor@example.com
+make student-bootstrap EMAIL=student@example.com
+make tutor-magic-link EMAIL=tutor@example.com
+make student-magic-link EMAIL=student@example.com
+make remove-tutor EMAIL=tutor@example.com CONFIRM=remove-tutor
+make remove-student EMAIL=student@example.com CONFIRM=remove-student
+```
+
+Bootstrap commands create accounts directly; Student bootstrap does not create an
+Invitation or Session Credit. Magic-link commands print relative links. Removal clears
+the selected account's authentication records; Student removal also clears that
+Student's Invitations, Bookings, Session Credits, and Shared Lesson Notes.
 
 Configure the existing HTTPS reverse proxy to forward the public origin to
 `http://127.0.0.1:7310`, preserving the request host. The container port is deliberately

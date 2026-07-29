@@ -1,5 +1,6 @@
 services:
   app:
+    build: .
     image: ${TUTORING_IMAGE:-ghcr.io/chrissannar/tutoring-platform:latest}
     pull_policy: always
     restart: unless-stopped

@@ -131,7 +131,14 @@ async def test_repository_command_emits_one_tutor_login_link(testbed) -> None:
     _, _, database_url = await authenticated_login_client(testbed)
 
     result = subprocess.run(
-        [sys.executable, "-m", "app.generate_tutor_login_link"],
+        [
+            sys.executable,
+            "-m",
+            "app.account_commands",
+            "magic-link",
+            "tutor",
+            "tutor@example.com",
+        ],
         cwd="backend",
         env={
             **os.environ,

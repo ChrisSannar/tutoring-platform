@@ -23,7 +23,7 @@ export VITE_API_PROXY_TARGET="http://127.0.0.1:${E2E_BACKEND_PORT}"
 UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache \
   uv run --project backend alembic -c backend/alembic.ini upgrade head
 UV_CACHE_DIR=/tmp/tutoring-platform-uv-cache \
-  uv run --project backend python -m app.bootstrap_tutor tutor@example.com
+  uv run --project backend python -m app.account_commands bootstrap tutor tutor@example.com
 
 status=0
 PLAYWRIGHT_BROWSERS_PATH=/tmp/tutoring-platform-playwright \
