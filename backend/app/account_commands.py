@@ -21,10 +21,15 @@ def bootstrap(database_url: str, role: str, email: str) -> bool:
                 return False
             connection.execute(
                 text(
-                    "INSERT INTO accounts (id, email, role) "
-                    "VALUES (:id, :email, :role)"
+                    "INSERT INTO accounts (id, email, role, display_name) "
+                    "VALUES (:id, :email, :role, :display_name)"
                 ),
-                {"id": str(uuid4()), "email": email, "role": role},
+                {
+                    "id": str(uuid4()),
+                    "email": email,
+                    "role": role,
+                    "display_name": email if role == "student" else None,
+                },
             )
     except IntegrityError:
         return False

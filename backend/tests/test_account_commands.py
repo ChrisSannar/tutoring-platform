@@ -60,3 +60,22 @@ def test_account_commands_cover_account_lifecycle(testbed, role: str) -> None:
     assert testbed.fetch_one(
         database_url, "SELECT COUNT(*) FROM authentication_request_events"
     ) == 0
+
+
+@pytest.mark.anyio
+async def test_bootstrapped_student_can_load_the_student_session(testbed) -> None:
+    database_url = testbed.migrated("student-bootstrap-session")
+    assert command(
+        database_url, "bootstrap", "student", "student@example.com"
+    ).returncode == 0
+    client = testbed.client()
+    await testbed.sign_in(client, database_url, "student@example.com")
+
+    session = await client.get("/api/student/session")
+
+    assert session.status_code == 200
+    assert session.json() == {
+        "role": "student",
+        "email": "student@example.com",
+        "display_name": "student@example.com",
+    }
