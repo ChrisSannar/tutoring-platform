@@ -47,6 +47,11 @@ export function TutorAuthentication() {
     });
     if (!response.ok) return;
     const authenticated = await response.json();
+    if (authenticated.role !== "tutor") {
+      // Full navigation so the Application role guard owns routing for non-tutor sessions.
+      window.location.assign("/student");
+      return;
+    }
     setCsrfToken(authenticated.csrf_token);
     window.history.replaceState({}, "", "/tutor");
     setScreen("workspace");

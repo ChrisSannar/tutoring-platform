@@ -42,6 +42,23 @@ async def test_role_session_reports_the_active_role(testbed) -> None:
 
 
 @pytest.mark.anyio
+async def test_role_session_reports_the_student_role(testbed) -> None:
+    database_url = testbed.migrated("uncovered-student")
+    testbed.seed(
+        database_url,
+        "INSERT INTO accounts (id, email, role) "
+        "VALUES ('student-account', 'student@example.com', 'student')",
+    )
+    client = testbed.client()
+    await testbed.sign_in(client, database_url, "student@example.com")
+
+    response = await client.get("/api/auth/session")
+
+    assert response.status_code == 200
+    assert response.json() == {"role": "student"}
+
+
+@pytest.mark.anyio
 async def test_testing_clock_overrides_now(testbed) -> None:
     client, csrf_token = await authenticated_tutor(testbed)
 
