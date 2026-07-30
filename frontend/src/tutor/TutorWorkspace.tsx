@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { LogoutButton } from "../auth/LogoutButton";
 import { AvailabilityCalendar } from "./AvailabilityCalendar";
 import { BookingCalendar } from "./BookingCalendar";
 import { BusinessSettings } from "./BusinessSettings";
@@ -12,7 +13,6 @@ type View = "overview" | "students" | "business" | "requests";
 
 type TutorWorkspaceProps = {
   csrfToken: string;
-  onLogOut: () => void;
 };
 
 const views: Array<{ id: View; label: string }> = [
@@ -24,7 +24,7 @@ const views: Array<{ id: View; label: string }> = [
 
 const themeKey = "theme";
 
-export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
+export function TutorWorkspace({ csrfToken }: TutorWorkspaceProps) {
   const [tutorTimezone, setTutorTimezone] = useState("");
   const [openRequests, setOpenRequests] = useState(0);
   const [activeView, setActiveView] = useState<View>("overview");
@@ -58,7 +58,7 @@ export function TutorWorkspace({ csrfToken, onLogOut }: TutorWorkspaceProps) {
       </nav>
       <div className="tutor-rail-actions">
         <button type="button" aria-pressed={darkMode} onClick={toggleTheme}>{darkMode ? "Light mode" : "Dark mode"}</button>
-        <button type="button" onClick={onLogOut}>Log out</button>
+        <LogoutButton />
       </div>
     </aside>
     <section className="tutor-work-area">

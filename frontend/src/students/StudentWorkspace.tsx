@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LogoutButton } from "../auth/LogoutButton";
 import { BookableSlots } from "./BookableSlots";
 import { LessonNotes } from "./LessonNotes";
 
@@ -27,8 +28,13 @@ export function StudentWorkspace() {
   if (!student) return <main><p>Loading Student Session…</p></main>;
   return (
     <main className="student-workspace"><section className="hero student-workspace-shell">
-      <p className="eyebrow">Your tutoring</p>
-      <h1>Student workspace</h1>
+      <header className="student-workspace-header">
+        <div>
+          <p className="eyebrow">Your tutoring</p>
+          <h1>Student workspace</h1>
+        </div>
+        <LogoutButton />
+      </header>
       <p>Welcome, {student.display_name}</p>
       <p className="intro">Choose one available tutoring time, keep your calendar export, and return here for notes the Tutor has published after each lesson.</p>
       <section className="student-dashboard-grid" aria-label="Tutoring calendar and Shared Lesson Notes">

@@ -101,9 +101,21 @@ test("Tutor signs in through the development outbox and logs out", async ({
   await expect(blockedRow).toHaveCount(0);
 
   await page.getByRole("button", { name: "Log out" }).click();
+  const logoutDialog = page.getByRole("dialog", { name: "Log out?" });
+  await expect(logoutDialog).toContainText(
+    "You’ll need to request a new Login Link to sign in again.",
+  );
+  await logoutDialog.getByRole("button", { name: "Stay signed in" }).click();
+  await expect(logoutDialog).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Tutor workspace" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Log out" }).click();
+  await logoutDialog.getByRole("button", { name: "Log out" }).click();
   await expect(
-    page.getByRole("heading", { name: "Tutor sign-in" }),
+    page.getByRole("heading", { name: "Personal tutoring, thoughtfully planned." }),
   ).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  expect((await page.request.get("/api/tutor/session")).status()).toBe(401);
   await expect(page.getByText("© 2026 Tutoring Platform")).toBeVisible();
 });
 
@@ -128,10 +140,22 @@ test("authenticated roles stay on their own routes", async ({ browser, page }, t
   await studentContext.close();
 });
 
-test("anonymous visitors fail open on guarded routes", async ({ page }) => {
+test("anonymous Student and unknown browser routes return home", async ({ page }) => {
   await page.goto("/student");
-  await expect(page.getByText("Student Session unavailable")).toBeVisible();
-  await expect(page).toHaveURL(/\/student$/);
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole("heading", { name: "Personal tutoring, thoughtfully planned." }),
+  ).toBeVisible();
+
+  for (const path of [
+    "/not-a-current-route",
+    "/student/not-a-current-route",
+    "/sign-in/not-a-current-route",
+    "/tutor/not-a-current-route",
+  ]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/$/);
+  }
 
   await page.goto("/tutor/sign-in");
   await expect(page.getByRole("heading", { name: "Tutor sign-in" })).toBeVisible();

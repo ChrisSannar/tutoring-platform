@@ -226,6 +226,31 @@ async def test_logout_requires_same_origin_and_csrf_then_revokes_the_session(
 
 
 @pytest.mark.anyio
+async def test_production_logout_clears_host_cookies(testbed, monkeypatch) -> None:
+    database_url = testbed.database_url("production-logout")
+    testbed.migrate(database_url)
+    testbed.bootstrap_tutor(database_url)
+    monkeypatch.setenv("TUTORING_ENVIRONMENT", "production")
+    monkeypatch.setenv("TUTORING_DATABASE_URL", database_url)
+    monkeypatch.setenv("TUTORING_APPLICATION_ORIGIN", "https://testserver")
+    client = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=testbed.app()),
+        base_url="https://testserver",
+        headers={"Origin": "https://testserver"},
+    )
+    csrf_token = await testbed.sign_in(client, database_url, "tutor@example.com")
+
+    logged_out = await client.post(
+        "/api/auth/logout", headers={"X-CSRF-Token": csrf_token}
+    )
+
+    cookies = logged_out.headers.get_list("set-cookie")
+    assert logged_out.status_code == 204
+    assert len(cookies) == 2
+    assert all("Max-Age=0" in cookie and "Secure" in cookie for cookie in cookies)
+
+
+@pytest.mark.anyio
 async def test_tutor_session_expires_after_the_inactivity_limit(
     testbed, monkeypatch
 ) -> None:

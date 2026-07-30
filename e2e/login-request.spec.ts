@@ -39,7 +39,7 @@ test("Login states keep Constellation hierarchy without overflow", async ({
   ).toBeVisible();
 });
 
-test("returning Student receives a Tutor-generated Login Link", async ({ browser, page }, testInfo) => {
+test("returning Student receives a Login Link and can log out", async ({ browser, page }, testInfo) => {
   await signInTutor(page);
   await page.getByRole("navigation", { name: "Tutor workspace" }).getByRole("button", { name: /Requests/ }).click();
 
@@ -71,5 +71,33 @@ test("returning Student receives a Tutor-generated Login Link", async ({ browser
   await expect(publicPage.getByRole("heading", { name: "Student workspace" })).toBeVisible();
   await publicPage.goto("/");
   await expect(publicPage).toHaveURL(/\/student$/);
+
+  const logoutButton = publicPage.getByRole("button", { name: "Log out" });
+  const [buttonBox, workspaceBox] = await Promise.all([
+    logoutButton.boundingBox(),
+    publicPage.locator(".student-workspace-shell").boundingBox(),
+  ]);
+  expect(buttonBox).not.toBeNull();
+  expect(workspaceBox).not.toBeNull();
+  expect(buttonBox!.x + buttonBox!.width).toBeGreaterThan(
+    workspaceBox!.x + workspaceBox!.width * 0.75,
+  );
+  expect(buttonBox!.y).toBeLessThan(workspaceBox!.y + 150);
+
+  await logoutButton.click();
+  const logoutDialog = publicPage.getByRole("dialog", { name: "Log out?" });
+  await expect(logoutDialog).toContainText(
+    "You’ll need to request a new Login Link to sign in again.",
+  );
+  await logoutDialog.getByRole("button", { name: "Stay signed in" }).click();
+  await expect(publicPage.getByRole("heading", { name: "Student workspace" })).toBeVisible();
+
+  await logoutButton.click();
+  await logoutDialog.getByRole("button", { name: "Log out" }).click();
+  await expect(
+    publicPage.getByRole("heading", { name: "Personal tutoring, thoughtfully planned." }),
+  ).toBeVisible();
+  await expect(publicPage).toHaveURL(/\/$/);
+  expect((await publicPage.request.get("/api/student/session")).status()).toBe(401);
   await publicContext.close();
 });

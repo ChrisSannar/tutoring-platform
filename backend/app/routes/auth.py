@@ -132,7 +132,19 @@ async def logout(request: Request, response: Response) -> Response:
         or not revoke_session(context.settings.database_url, raw_session, raw_csrf)
     ):
         raise HTTPException(status_code=403)
-    response.delete_cookie(context.session_cookie_name, path="/")
-    response.delete_cookie(context.csrf_cookie_name, path="/")
+    response.delete_cookie(
+        context.session_cookie_name,
+        path="/",
+        secure=context.secure_cookies,
+        httponly=True,
+        samesite="lax",
+    )
+    response.delete_cookie(
+        context.csrf_cookie_name,
+        path="/",
+        secure=context.secure_cookies,
+        httponly=False,
+        samesite="strict",
+    )
     response.status_code = 204
     return response

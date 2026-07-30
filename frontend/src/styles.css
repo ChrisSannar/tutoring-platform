@@ -147,6 +147,17 @@ main {
   gap: 1.5rem;
 }
 
+.student-workspace-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.student-workspace-header > button {
+  margin-top: 0;
+}
+
 .student-calendar { grid-area: calendar; }
 .student-notes { grid-area: notes; }
 .tutor-students { grid-area: students; }
@@ -386,6 +397,16 @@ dialog::backdrop {
   background: color-mix(in srgb, var(--ink) 58%, transparent);
 }
 
+.logout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.logout-actions button {
+  margin: 1rem 0 0;
+}
+
 @media (max-width: 36rem) {
   main {
     padding: 1rem;
@@ -453,12 +474,15 @@ dialog::backdrop {
   padding-left: clamp(1.25rem, 4vw, 3rem);
 }
 
-.student-workspace-shell > .eyebrow {
-  margin: 0;
+.student-workspace-header {
   padding-top: clamp(2rem, 6vw, 4.5rem);
 }
 
-.student-workspace-shell > h1 {
+.student-workspace-header .eyebrow {
+  margin: 0;
+}
+
+.student-workspace-header h1 {
   max-width: none;
   padding-top: 0.75rem;
   font-size: clamp(3rem, 7vw, 6rem);

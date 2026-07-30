@@ -57,16 +57,6 @@ export function TutorAuthentication() {
     setScreen("workspace");
   }
 
-  async function logOut() {
-    const response = await fetch("/api/auth/logout", {
-      method: "POST",
-      headers: { "X-CSRF-Token": csrfToken },
-    });
-    if (!response.ok) return;
-    window.history.replaceState({}, "", "/tutor/sign-in");
-    setScreen("sign-in");
-  }
-
   if (screen === "sent") {
     return (
       <main className="login-authentication"><h1>Check the development outbox</h1></main>
@@ -84,7 +74,7 @@ export function TutorAuthentication() {
     );
   }
   if (screen === "workspace") {
-    return <TutorWorkspace csrfToken={csrfToken} onLogOut={logOut} />;
+    return <TutorWorkspace csrfToken={csrfToken} />;
   }
   return (
     <main className="login-authentication">
